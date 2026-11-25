@@ -57,6 +57,7 @@
   .chip[aria-pressed="true"]{background:var(--c);color:#fff}
   .sub{font-size:.85rem;color:var(--muted);font-weight:600}
   .interval{font-size:.9rem;font-weight:700;color:var(--c)}
+  .posw{display:inline-flex;align-items:center;gap:6px}
   .toggle{display:flex;align-items:center;gap:6px;font-size:.88rem;font-weight:700}
   .toggle input{accent-color:var(--c);width:18px;height:18px}
 
@@ -200,7 +201,7 @@
 <script>
 (() => {
 "use strict";
-const VERSION = "v1.4 · 26 Nov 2026";
+const VERSION = "v1.5 · 26 Nov 2026";
 // Snapshot of the page before any script changes it, so "Download" always saves a clean, working copy.
 const PRISTINE = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
 
@@ -234,15 +235,33 @@ const FRAMES = {
   high3:{label:"3–4 close", s:[0,2,4,6,7], close:[3,4]},
 };
 
-function spell(str, finger, semis){
+// Positions: the whole hand slides up the string's major scale; the hand shape stays the same.
+// Semitones added to every stopped note, and letter-steps added, for positions 1–4.
+const POS_SHIFT = {1:0, 2:2, 3:3, 4:5};
+function spell(str, finger, semis, pos=1){
   if(finger===0) return str.n;
-  const step = (finger===4 && semis===8) ? 5 : finger;          // stretched 4 reads as a minor 6th
+  const step = ((finger===4 && semis===8) ? 5 : finger) + (pos-1);   // stretched 4 reads as a minor 6th
   const li = (str.l + step) % 7;
-  const natural = (NAT[li] - NAT[str.l] + 12) % 12;
-  const diff = semis - natural;
+  const natural = (NAT[li] - NAT[str.l] + 12) % 12;  // within one octave; octave added via step>=7 below
+  const diff = semis + POS_SHIFT[pos] - natural - (step>=7?12:0);
   return LETTERS[li] + ({"-2":"𝄫","-1":"♭","0":"","1":"♯","2":"𝄪"}[diff] ?? "?");
 }
-const note = (str, f, s) => ({f, midi:str.m + s, name:spell(str,f,s)});
+const note = (str, f, s, pos=1) => f===0
+  ? {f, midi:str.m, name:str.n}
+  : {f, midi:str.m + s + POS_SHIFT[pos], name:spell(str,f,s,pos)};
+
+// Name the interval between two notes, e.g. "perfect 4th".
+function intervalName(a, b){
+  if(a.midi > b.midi) [a,b] = [b,a];
+  const steps = diatonic(b) - diatonic(a), semis = b.midi - a.midi;
+  const base = [0,2,4,5,7,9,11][steps%7] + 12*Math.floor(steps/7), diff = semis - base;
+  const perfect = [0,3,4].includes(steps%7);
+  const q = perfect ? {"-1":"diminished","0":"perfect","1":"augmented"}[diff]
+                    : {"-2":"diminished","-1":"minor","0":"major","1":"augmented"}[diff];
+  const num = steps+1, ord = ({1:"unison",8:"octave"})[num] || num + (num===2?"nd":num===3?"rd":"th");
+  const tri = semis===6 ? " (tritone)" : "";
+  return (q ? q+" " : "") + ord + tri;
+}
 
 /* ---------- Levels ---------- */
 const LEVELS = [
@@ -253,7 +272,7 @@ const LEVELS = [
   {id:"4", title:"Whole Hand",    c:"green",kind:"frame", fingers:[4,3,2,1,0], whole:true},
 ];
 const state = {inst:"violin", tempo:72, variation:"separate",
-  lv:{"1":{opt:"1-0",w:"close",byString:false},"2":{opt:"1-2",w:"close"},"2A":{pair:0,frame:"high2"},"3":{frame:"high2"},"4":{frame:"high2"}}};
+  lv:{"1":{opt:"1-0",w:"close",byString:false,pos:1},"2":{opt:"1-2",w:"close",pos:1},"2A":{pair:0,frame:"high2",pos:1},"3":{frame:"high2",pos:1},"4":{frame:"high2",pos:1}}};
 
 // Build the step list for a level: each step = {si: string index, notes:[...], dbl?}
 function steps(L){
@@ -268,7 +287,7 @@ function steps(L){
         const P = PAIRS[key][st.w];
         let fs = key.split("-").map(Number).sort((a,b)=>b-a);  // high finger first on the way down
         if(!dir) fs.reverse();
-        out.push({si, dir, notes: fs.map(f=>note(strs[si], f, f?P[f]:0))});
+        out.push({si, dir, notes: fs.map(f=>note(strs[si], f, f?P[f]:0, st.pos))});
       }
     }
   } else if(L.kind==="frame"){
@@ -277,12 +296,12 @@ function steps(L){
       const order = dir? [0,1,2,3] : [3,2,1,0];
       for(const si of order){
         const fs = dir? L.fingers : [...L.fingers].reverse();
-        out.push({si, dir, notes: fs.map(f=>note(strs[si], f, F[f]))});
+        out.push({si, dir, notes: fs.map(f=>note(strs[si], f, F[f], st.pos))});
       }
     }
   } else if(L.kind==="bridge"){
     const F = FRAMES[st.frame].s, hi = strs[st.pair], lo = strs[st.pair+1];
-    const a = note(hi,1,F[1]), b = note(lo,2,F[2]);
+    const a = note(hi,1,F[1],st.pos), b = note(lo,2,F[2],st.pos);
     out.push({si:st.pair, notes:[a], cap:`${hi.n}: 1`});
     out.push({si:st.pair, notes:[a,b], dbl:true, cap:"Together"});
     out.push({si:st.pair+1, notes:[b], cap:`${lo.n}: 2`});
@@ -357,7 +376,8 @@ function render(){
       const cw = h("div",{class:"seg",role:"group","aria-label":"Close or wide"});
       for(const w of ["close","wide"]) cw.append(h("button",{"data-set":`${L.id}|w|${w}`,"aria-pressed":String(st.w===w)},w[0].toUpperCase()+w.slice(1)));
       opts.append(chips, cw);
-      const iv = st.byString ? "a different interval on each string" : PAIRS[st.opt].iv[st.w==="close"?0:1];
+      const first = steps(L)[0].notes;
+      const iv = st.byString ? "a different interval on each string" : intervalName(first[0], first[first.length-1]);
       opts.append(h("span",{class:"interval"},iv));
       if(L.id==="1"){
         const t = h("label",{class:"toggle"},`<input type="checkbox" data-set="1|byString|x" ${st.byString?"checked":""}> Change fingers by string`);
@@ -373,6 +393,10 @@ function render(){
       for(const k in FRAMES) seg.append(h("button",{"data-set":`${L.id}|frame|${k}`,"aria-pressed":String(st.frame===k)},FRAMES[k].label));
       opts.append(h("span",{class:"sub"},"Hand frame"), seg);
     }
+    const ps = h("div",{class:"seg",role:"group","aria-label":"Position"});
+    for(let p=1;p<=4;p++) ps.append(h("button",{"data-set":`${L.id}|pos|${p}`,"aria-pressed":String(st.pos===p)},`${p}${["st","nd","rd","th"][p-1]}`));
+    const pw = h("span",{class:"posw"}); pw.append(h("span",{class:"sub"},"Position"), ps);
+    opts.append(pw);
     sec.append(opts);
 
     const S = steps(L), showNames = $("#names").checked, showStaff = $("#notation").checked;
@@ -429,7 +453,7 @@ const VARS = [
   {id:"separate", name:"Separate bows", c:"green", svg:`<svg viewBox="0 0 120 30"><g stroke="#14213d" stroke-width="4" stroke-linecap="round"><line x1="15" y1="4" x2="15" y2="26"/><line x1="45" y1="4" x2="45" y2="26"/><line x1="75" y1="4" x2="75" y2="26"/><line x1="105" y1="4" x2="105" y2="26"/></g></svg>`},
   {id:"slur",     name:"Slur 2 / 3 / 4", c:"red", sub:"Notes join under one bow", svg:`<svg viewBox="0 0 160 30" fill="none" stroke="#14213d" stroke-width="2.5"><path d="M8 16 Q22 2 36 16"/><path d="M52 16 Q72 0 92 16"/><path d="M106 16 Q131 -2 156 16"/><g fill="#14213d" stroke="none"><circle cx="10" cy="24" r="4"/><circle cx="34" cy="24" r="4"/><circle cx="54" cy="24" r="4"/><circle cx="72" cy="24" r="4"/><circle cx="90" cy="24" r="4"/><circle cx="108" cy="24" r="4"/><circle cx="124" cy="24" r="4"/><circle cx="140" cy="24" r="4"/><circle cx="156" cy="24" r="4"/></g></svg>`},
   {id:"hooked",   name:"Hooked bows", c:"purple", sub:"Two notes, same direction, stop between", svg:`<svg viewBox="0 0 120 30" fill="none" stroke="#14213d" stroke-width="2.5"><path d="M10 16 Q30 0 50 16"/><path d="M70 16 Q90 0 110 16"/><g fill="#14213d" stroke="none"><circle cx="12" cy="24" r="4"/><circle cx="48" cy="24" r="4"/><circle cx="72" cy="24" r="4"/><circle cx="108" cy="24" r="4"/></g></svg>`},
-  {id:"position", name:"Change position", c:"blue", sub:"Same shapes in 2nd, 3rd, higher", svg:`<svg viewBox="0 0 140 30"><text x="0" y="24" font-size="24">✋</text><text x="32" y="22" font-size="20" font-weight="800" fill="#14213d">→</text><g fill="#14213d"><circle cx="66" cy="16" r="5"/><circle cx="86" cy="16" r="5"/><circle cx="106" cy="16" r="5"/><circle cx="126" cy="16" r="5"/></g></svg>`},
+  {id:"position", name:"Change position", c:"blue", sub:"Use the Position buttons on each level", svg:`<svg viewBox="0 0 140 30"><text x="0" y="24" font-size="24">✋</text><text x="32" y="22" font-size="20" font-weight="800" fill="#14213d">→</text><g fill="#14213d"><circle cx="66" cy="16" r="5"/><circle cx="86" cy="16" r="5"/><circle cx="106" cy="16" r="5"/><circle cx="126" cy="16" r="5"/></g></svg>`},
   {id:"longshort",name:"Long-short / Short-long", c:"red", sub:"Dotted rhythms", svg:`<svg viewBox="0 0 150 30" stroke="#14213d" stroke-width="4" stroke-linecap="round"><line x1="6" y1="15" x2="44" y2="15"/><line x1="54" y1="15" x2="64" y2="15"/><line x1="75" y1="3" x2="75" y2="27" stroke-width="3"/><line x1="86" y1="15" x2="96" y2="15"/><line x1="106" y1="15" x2="144" y2="15"/></svg>`},
   {id:"bystring", name:"Change fingers by string", c:"green", sub:"Level 1: 1-0 | 2-0 | 3-0 | 4-0", svg:`<svg viewBox="0 0 150 30"><g fill="#fff" stroke="#14213d" stroke-width="2">${[18,56,94,132].map((x,i)=>`<circle cx="${x}" cy="15" r="12"/>`).join("")}</g><g font-weight="800" font-size="14" text-anchor="middle" fill="#14213d">${[18,56,94,132].map((x,i)=>`<text x="${x}" y="20">${i+1}</text>`).join("")}</g></svg>`},
 ];
@@ -512,7 +536,7 @@ document.addEventListener("click", e=>{
   const set = e.target.closest("[data-set]");
   if(set && set.tagName!=="INPUT"){
     const [id,k,v] = set.dataset.set.split("|"), st = state.lv[id];
-    if(k==="pair") st.pair=+v; else st[k]=v;
+    if(k==="pair" || k==="pos") st[k]=+v; else st[k]=v;
     if(id==="1" && k==="opt") st.byString=false;
     stop(); render(); renderVars(); return;
   }
@@ -547,8 +571,9 @@ $("#spin").addEventListener("click", ()=>{
   if(L.kind==="pair"){ const o=pick(L.opts), w=pick(["close","wide"]); state.lv[L.id].opt=o; state.lv[L.id].w=w; if(L.id==="1") state.lv["1"].byString=false; what=`${o}, ${w}`; }
   else { const k=pick(Object.keys(FRAMES)); state.lv[L.id].frame=k; what=`frame ${FRAMES[k].label}`; }
   state.variation = V.id;
+  const pos = pick([1,1,2,3,4]); state.lv[L.id].pos = pos;
   stop(); render(); renderVars();
-  $("#challenge").textContent = `Level ${L.id} (${L.title}) — ${what} — with ${V.name.toLowerCase()}.`;
+  $("#challenge").textContent = `Level ${L.id} (${L.title}) — ${what} — position ${pos} — with ${V.name.toLowerCase()}.`;
   $("#lv"+L.id).scrollIntoView({behavior:"smooth",block:"center"});
 });
 
