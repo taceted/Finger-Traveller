@@ -183,7 +183,7 @@
 <script>
 (() => {
 "use strict";
-const VERSION = "v1.0 · 26 Nov 2026";
+const VERSION = "v1.1 · 26 Nov 2026";
 // Snapshot of the page before any script changes it, so "Download" always saves a clean, working copy.
 const PRISTINE = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
 
@@ -380,7 +380,7 @@ function renderVars(){
 }
 
 /* ---------- Audio ---------- */
-let ctx=null, playing=null, timers=[];
+let ctx=null, playing=null, timers=[], bus=null;  // bus = one volume control per playback, cut on Stop
 function audio(){ if(!ctx) ctx = new (window.AudioContext||window.webkitAudioContext)(); if(ctx.state==="suspended") ctx.resume(); return ctx; }
 const hz = m => 440*Math.pow(2,(m-69)/12);
 function tone(m, t, dur, legato){
@@ -392,16 +392,17 @@ function tone(m, t, dur, legato){
   const sound = legato ? dur*0.98 : dur*0.8, peak=0.11;
   g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(peak,t+0.04);
   g.gain.setValueAtTime(peak*0.85,t+Math.max(0.05,sound-0.06)); g.gain.exponentialRampToValueAtTime(0.0001,t+sound);
-  o1.connect(f); o2.connect(f); f.connect(g); g.connect(a.destination);
+  o1.connect(f); o2.connect(f); f.connect(g); g.connect(bus);
   for(const o of [o1,o2,vib]){ o.start(t); o.stop(t+sound+0.05); }
 }
 function click(t, accent){
   const a=audio(), o=a.createOscillator(), g=a.createGain();
   o.frequency.value = accent?1500:1000; g.gain.setValueAtTime(0.08,t); g.gain.exponentialRampToValueAtTime(0.0001,t+0.04);
-  o.connect(g); g.connect(a.destination); o.start(t); o.stop(t+0.05);
+  o.connect(g); g.connect(bus); o.start(t); o.stop(t+0.05);
 }
 function stop(){
   timers.forEach(clearTimeout); timers=[];
+  if(bus){ try{ bus.gain.setValueAtTime(0, ctx.currentTime); bus.disconnect(); }catch(e){} bus=null; }
   document.querySelectorAll(".active").forEach(e=>e.classList.remove("active"));
   document.querySelectorAll(".on").forEach(e=>e.classList.remove("on"));
   document.querySelectorAll(".play").forEach(b=>{b.dataset.on="0"; b.textContent="▶ Play";});
@@ -411,6 +412,7 @@ function play(id){
   if(playing===id){ stop(); return; }
   stop(); playing=id;
   const L = LEVELS.find(l=>l.id===id), S = steps(L), a = audio();
+  bus = a.createGain(); bus.connect(a.destination);
   const btn = $(`.play[data-lv="${id}"]`); btn.dataset.on="1"; btn.textContent="■ Stop";
   const beat = 60/state.tempo, v = state.variation, legato = v==="slur";
   let t = a.currentTime + 0.15, n = 0;
