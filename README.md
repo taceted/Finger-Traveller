@@ -2,7 +2,7 @@
 
 A left-hand warm-up for violin and viola by Zac Johnston.
 
-**Students:** open the page at **https://taceted.github.io/Finger-Traveller/**
+**Students:** open the page at **https://fingers.thatviolinguy.com.au**
 
 The page:
 - shows each level as a path down the strings (E → A → D → G) and back up
