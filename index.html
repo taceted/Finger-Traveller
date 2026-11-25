@@ -71,6 +71,17 @@
   .tile.active .box{background:var(--c);color:#fff;transform:scale(1.05)}
   .tile.active .names{color:#fff}
   .tile .fing span.on, .tile .names span.on{text-decoration:underline;text-decoration-thickness:3px;text-underline-offset:4px}
+  .stf{background:#fff;border-radius:6px;margin:5px 2px 0;padding:2px 0;line-height:0}
+  .stf svg{display:block;margin:0 auto;width:100%;height:auto}
+  .stf .ln{stroke:#14213d;stroke-width:1}
+  .stf .hd{fill:#14213d}
+  .stf .hd.open{fill:#fff;stroke:#14213d;stroke-width:1.6}
+  .stf .st{stroke:#14213d;stroke-width:1.3}
+  .stf .ac{font-size:19px;fill:#14213d;font-family:"Segoe UI Symbol","Apple Symbols","Noto Sans Symbols 2",sans-serif}
+  .stf .cl{fill:none;stroke:#14213d;stroke-width:1.7;stroke-linecap:round}
+  .stf g.on .hd{fill:var(--c)} .stf g.on .hd.open{fill:var(--c)} .stf g.on .ac{fill:var(--c)} .stf g.on .st{stroke:var(--c)}
+  .bstep .stf{max-width:170px;margin:6px auto 0}
+  .bstep.active .stf .hd{fill:var(--c)}
   .turn{grid-column:1/-1;text-align:right;color:var(--c);font-weight:900;font-size:1.1rem;line-height:1;margin:-2px 6px -2px 0}
   .whole .tile .fing{font-size:1rem;letter-spacing:.02em}
   .whole .tile .names{font-size:.7rem}
@@ -94,7 +105,9 @@
   .var small{display:block;font-weight:600;color:var(--muted);margin-top:4px;font-size:.8rem}
   .var svg{display:block;margin:6px auto 0;height:34px;width:auto}
   .var[aria-pressed="true"]{outline:3px solid var(--ink);outline-offset:-3px}
-  .challenge{margin-top:12px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  .challenge{margin:0 0 16px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  .btn.big{font-size:1rem;padding:9px 16px;background:var(--ink);color:#fff}
+  .btn.big:hover{background:#2b3a63}
   .challenge output{flex:1 1 260px;background:var(--violet-bg);border-radius:10px;padding:10px 12px;font-weight:700;min-height:2.6em}
 
   .tips{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px}
@@ -109,10 +122,10 @@
   @media (max-width:600px){
     .controls{position:static}
     .seg{flex-wrap:wrap;border-radius:12px}
-    .path{gap:6px 10px}
-    .tile:not(.first)::before{left:-10px}
     .tile .fing{font-size:1.05rem}
-    .whole .tile .fing{font-size:.78rem}
+    .whole .tile .fing{font-size:.95rem}
+    .path{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 10px}
+    .tile::before{display:none}
     .whole .tile .names{display:none}
     .vars{grid-template-columns:1fr 1fr}
     .tips{grid-template-columns:1fr}
@@ -151,10 +164,16 @@
     <div class="ctl toggle"><input type="checkbox" id="loop"><label for="loop">Loop</label></div>
     <div class="ctl toggle"><input type="checkbox" id="click" checked><label for="click">Click</label></div>
     <div class="ctl toggle"><input type="checkbox" id="names" checked><label for="names">Note names</label></div>
+    <div class="ctl toggle"><input type="checkbox" id="notation" checked><label for="notation">Notation</label></div>
     <div class="tools">
       <button class="btn" id="dl" title="Save this page to use offline">⬇ Download</button>
       <button class="btn" id="print" title="Print or save as an A4 PDF">🖨 Print</button>
     </div>
+  </div>
+
+  <div class="challenge no-print">
+    <button class="btn big" id="spin">🎲 Give me a challenge</button>
+    <output id="challenge" aria-live="polite">Pick a level, a finger pair and a variation — or let the dice decide.</output>
   </div>
 
   <main id="levels"></main>
@@ -163,10 +182,6 @@
     <div class="level-head"><span class="title" id="var-h" style="font-size:1.5rem">Variations</span>
       <span class="sub">Tap one to hear it applied when you press Play.</span></div>
     <div class="vars" id="vars"></div>
-    <div class="challenge">
-      <button class="btn" id="spin">🎲 Give me a challenge</button>
-      <output id="challenge" aria-live="polite">Pick a level, a finger pair and a variation — or let the dice decide.</output>
-    </div>
   </section>
 
   <section class="tips" aria-label="Focus points">
@@ -183,7 +198,7 @@
 <script>
 (() => {
 "use strict";
-const VERSION = "v1.1 · 26 Nov 2026";
+const VERSION = "v1.2 · 26 Nov 2026";
 // Snapshot of the page before any script changes it, so "Download" always saves a clean, working copy.
 const PRISTINE = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
 
@@ -273,6 +288,42 @@ function steps(L){
   return out;
 }
 
+/* ---------- Notation (drawn in SVG, so it works offline) ---------- */
+const ACC = {"♯":1,"♭":-1,"𝄪":2,"𝄫":-2};
+function diatonic(n){
+  const L = n.name[0], acc = ACC[n.name.slice(1)] || 0, nat = n.midi - acc;
+  return (Math.floor(nat/12)-1)*7 + LETTERS.indexOf(L);
+}
+const CLEFS = {
+  // bottom staff line as a diatonic number: treble = E4, alto = F3
+  treble:{bottom:4*7+2, svg:`<path class="cl" d="M9 47 C12 48 13 43 11.5 31 L10.4 2 C10 -5 14.5 -8 14.5 -2.5 C14.5 3 4 9 3 19 C2 29 9 33 14 30 C19 27 17 19 11 19 C6.5 19 6.5 25.5 10 26.5"/><circle cx="7.2" cy="45.5" r="2.3" fill="#14213d"/>`},
+  alto:  {bottom:3*7+3, svg:`<rect x="1" y="0" width="3.2" height="32" fill="#14213d"/><rect x="5.6" y="0" width="1.3" height="32" fill="#14213d"/><path class="cl" d="M7 16 C16 14 17 -1 9.5 1.5"/><path class="cl" d="M7 16 C16 18 17 33 9.5 30.5"/>`},
+};
+function staff(notes, opts={}){
+  const clef = CLEFS[state.inst==="viola"?"alto":"treble"], T = 24, sp = 8, B = T + 4*sp;
+  const y = d => B - (d - clef.bottom)*sp/2;
+  const n = opts.chord ? 1 : notes.length, step = 30, x0 = 36, W = x0 + n*step + 2, H = B + 26;
+  let out = `<svg viewBox="0 0 ${W} ${H}" style="max-width:${Math.round(W*(opts.scale||1.05))}px" role="img" aria-label="${notes.map(q=>q.name).join(", ")}">`;
+  for(let i=0;i<5;i++) out += `<line class="ln" x1="0" x2="${W}" y1="${T+i*sp}" y2="${T+i*sp}"/>`;
+  out += `<g transform="translate(5 ${T})">${clef.svg}</g>`;
+  notes.forEach((q,j)=>{
+    const d = diatonic(q), yy = y(d), x = x0 + 8 + (opts.chord?0:j*step);
+    let g = `<g data-n="${j}">`;
+    for(let l=clef.bottom-2; l>=d; l-=2) g += `<line class="ln" x1="${x-8}" x2="${x+8}" y1="${y(l)}" y2="${y(l)}"/>`;
+    for(let l=clef.bottom+10; l<=d; l+=2) g += `<line class="ln" x1="${x-8}" x2="${x+8}" y1="${y(l)}" y2="${y(l)}"/>`;
+    const acc = q.name.slice(1);
+    if(acc) g += `<text class="ac" x="${x-7}" y="${yy+6}" text-anchor="end">${acc}</text>`;
+    g += `<ellipse class="hd${opts.whole?" open":""}" cx="${x}" cy="${yy}" rx="5" ry="3.7" transform="rotate(-20 ${x} ${yy})"/>`;
+    if(!opts.whole){
+      const up = d < clef.bottom + 4;
+      g += up ? `<line class="st" x1="${x+4.6}" x2="${x+4.6}" y1="${yy-1}" y2="${yy-25}"/>`
+              : `<line class="st" x1="${x-4.6}" x2="${x-4.6}" y1="${yy+1}" y2="${yy+25}"/>`;
+    }
+    out += g + `</g>`;
+  });
+  return out + `</svg>`;
+}
+
 /* ---------- Rendering ---------- */
 const $ = (s, r=document) => r.querySelector(s);
 const h = (tag, attrs={}, html="") => { const e=document.createElement(tag); for(const k in attrs) e.setAttribute(k,attrs[k]); e.innerHTML=html; return e; };
@@ -314,7 +365,7 @@ function render(){
     }
     sec.append(opts);
 
-    const S = steps(L), showNames = $("#names").checked;
+    const S = steps(L), showNames = $("#names").checked, showStaff = $("#notation").checked;
     if(L.kind==="bridge"){
       const g = h("div",{class:"bridge"});
       S.forEach((s,i)=>{
@@ -329,7 +380,8 @@ function render(){
           ${bot?`<circle cx="130" cy="51" r="12" fill="var(--purple)"/><text x="130" y="56.5" text-anchor="middle" font-weight="800" font-size="15" fill="#fff">2</text>`:""}
         </svg>`;
         const nm = showNames ? `<div class="sub">${s.notes.map(n=>n.name).join(" + ")}</div>` : "";
-        g.append(h("div",{class:"bstep","data-step":i},`${svg}<div class="cap">${s.cap}</div>${nm}`));
+        const sf = showStaff ? `<div class="stf">${staff(s.notes,{chord:true,whole:true,scale:0.85})}</div>` : "";
+        g.append(h("div",{class:"bstep","data-step":i},`${svg}<div class="cap">${s.cap}</div>${nm}${sf}`));
       });
       sec.append(g);
     } else {
@@ -341,7 +393,7 @@ function render(){
         const fing = s.notes.map((n,j)=>`<span data-n="${j}">${n.f}</span>`).join("-");
         const nm = s.notes.map((n,j)=>`<span data-n="${j}">${n.name}</span>`).join(" ");
         g.append(h("div",{class:"tile"+(i%4===0?" first":""),"data-step":i},
-          `<div class="str">${str}</div><div class="box"><div class="fing">${fing}</div>${showNames?`<div class="names">${nm}</div>`:""}</div>`));
+          `<div class="str">${str}</div><div class="box"><div class="fing">${fing}</div>${showNames?`<div class="names">${nm}</div>`:""}${showStaff?`<div class="stf">${staff(s.notes)}</div>`:""}</div>`));
       });
       sec.append(g);
     }
@@ -465,7 +517,7 @@ document.addEventListener("click", e=>{
 });
 document.addEventListener("change", e=>{
   if(e.target.matches('[data-set="1|byString|x"]')){ state.lv["1"].byString = e.target.checked; stop(); render(); renderVars(); }
-  if(e.target.id==="names") render();
+  if(e.target.id==="names" || e.target.id==="notation") render();
 });
 $("#inst").addEventListener("click", e=>{
   const b = e.target.closest("button"); if(!b) return;
