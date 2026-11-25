@@ -77,9 +77,10 @@
   .stf .hd{fill:#14213d}
   .stf .hd.open{fill:#fff;stroke:#14213d;stroke-width:1.6}
   .stf .st{stroke:#14213d;stroke-width:1.3}
-  .stf .ac{font-size:19px;fill:#14213d;font-family:"Segoe UI Symbol","Apple Symbols","Noto Sans Symbols 2",sans-serif}
+  .stf .ac{fill:none;stroke:#14213d;stroke-width:1.2;stroke-linejoin:round}
+  .stf .ac.bar{stroke-width:2.4}
   .stf .cl{fill:none;stroke:#14213d;stroke-width:1.7;stroke-linecap:round}
-  .stf g.on .hd{fill:var(--c)} .stf g.on .hd.open{fill:var(--c)} .stf g.on .ac{fill:var(--c)} .stf g.on .st{stroke:var(--c)}
+  .stf g.on .hd{fill:var(--c)} .stf g.on .hd.open{fill:var(--c)} .stf g.on .ac{stroke:var(--c)} .stf g.on .st{stroke:var(--c)}
   .bstep .stf{max-width:170px;margin:6px auto 0}
   .bstep.active .stf .hd{fill:var(--c)}
   .turn{grid-column:1/-1;text-align:right;color:var(--c);font-weight:900;font-size:1.1rem;line-height:1;margin:-2px 6px -2px 0}
@@ -164,7 +165,7 @@
     <div class="ctl toggle"><input type="checkbox" id="loop"><label for="loop">Loop</label></div>
     <div class="ctl toggle"><input type="checkbox" id="click" checked><label for="click">Click</label></div>
     <div class="ctl toggle"><input type="checkbox" id="names" checked><label for="names">Note names</label></div>
-    <div class="ctl toggle"><input type="checkbox" id="notation" checked><label for="notation">Notation</label></div>
+    <div class="ctl toggle"><input type="checkbox" id="notation" checked><label for="notation">Show notation</label></div>
     <div class="tools">
       <button class="btn" id="dl" title="Save this page to use offline">⬇ Download</button>
       <button class="btn" id="print" title="Print or save as an A4 PDF">🖨 Print</button>
@@ -198,7 +199,7 @@
 <script>
 (() => {
 "use strict";
-const VERSION = "v1.2 · 26 Nov 2026";
+const VERSION = "v1.3 · 26 Nov 2026";
 // Snapshot of the page before any script changes it, so "Download" always saves a clean, working copy.
 const PRISTINE = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
 
@@ -299,6 +300,15 @@ const CLEFS = {
   treble:{bottom:4*7+2, svg:`<path class="cl" d="M9 47 C12 48 13 43 11.5 31 L10.4 2 C10 -5 14.5 -8 14.5 -2.5 C14.5 3 4 9 3 19 C2 29 9 33 14 30 C19 27 17 19 11 19 C6.5 19 6.5 25.5 10 26.5"/><circle cx="7.2" cy="45.5" r="2.3" fill="#14213d"/>`},
   alto:  {bottom:3*7+3, svg:`<rect x="1" y="0" width="3.2" height="32" fill="#14213d"/><rect x="5.6" y="0" width="1.3" height="32" fill="#14213d"/><path class="cl" d="M7 16 C16 14 17 -1 9.5 1.5"/><path class="cl" d="M7 16 C16 18 17 33 9.5 30.5"/>`},
 };
+// Sharps and flats drawn as shapes so they line up exactly with the note's line or space.
+function accidental(a, x, y){
+  if(a==="♭") return `<path class="ac" d="M${x-2} ${y-13} V${y+4} C${x+6} ${y+1.5} ${x+6.5} ${y-3.5} ${x+1.5} ${y-3} C${x} ${y-2.8} ${x-1.2} ${y-2} ${x-2} ${y-1}"/>`;
+  if(a==="♯") return `<path class="ac" d="M${x-1.6} ${y-9} V${y+10} M${x+1.8} ${y-10} V${y+9}"/>`
+    + `<path class="ac bar" d="M${x-4.5} ${y-1.4} L${x+4.5} ${y-4.4} M${x-4.5} ${y+4.4} L${x+4.5} ${y+1.4}"/>`;
+  if(a==="𝄫") return accidental("♭", x-5, y) + accidental("♭", x+1, y);
+  if(a==="𝄪") return `<path class="ac bar" d="M${x-3} ${y-3} L${x+3} ${y+3} M${x-3} ${y+3} L${x+3} ${y-3}"/>`;
+  return "";
+}
 function staff(notes, opts={}){
   const clef = CLEFS[state.inst==="viola"?"alto":"treble"], T = 24, sp = 8, B = T + 4*sp;
   const y = d => B - (d - clef.bottom)*sp/2;
@@ -311,8 +321,7 @@ function staff(notes, opts={}){
     let g = `<g data-n="${j}">`;
     for(let l=clef.bottom-2; l>=d; l-=2) g += `<line class="ln" x1="${x-8}" x2="${x+8}" y1="${y(l)}" y2="${y(l)}"/>`;
     for(let l=clef.bottom+10; l<=d; l+=2) g += `<line class="ln" x1="${x-8}" x2="${x+8}" y1="${y(l)}" y2="${y(l)}"/>`;
-    const acc = q.name.slice(1);
-    if(acc) g += `<text class="ac" x="${x-7}" y="${yy+6}" text-anchor="end">${acc}</text>`;
+    g += accidental(q.name.slice(1), x - 14, yy);
     g += `<ellipse class="hd${opts.whole?" open":""}" cx="${x}" cy="${yy}" rx="5" ry="3.7" transform="rotate(-20 ${x} ${yy})"/>`;
     if(!opts.whole){
       const up = d < clef.bottom + 4;
@@ -543,6 +552,11 @@ $("#spin").addEventListener("click", ()=>{
   $("#lv"+L.id).scrollIntoView({behavior:"smooth",block:"center"});
 });
 
+// Remember the notation and note-name choices on this device (if the browser allows it).
+for(const id of ["notation","names"]){
+  try{ const v = localStorage.getItem("ft-"+id); if(v!==null) $("#"+id).checked = v==="1"; }catch(e){}
+  $("#"+id).addEventListener("change", e=>{ try{ localStorage.setItem("ft-"+id, e.target.checked?"1":"0"); }catch(_){} });
+}
 $("#ver").textContent = VERSION;
 render(); renderVars();
 })();
