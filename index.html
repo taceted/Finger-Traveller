@@ -38,6 +38,7 @@
   input[type=range]{width:110px;accent-color:var(--ink)}
   .bpm{min-width:3.2em;font-variant-numeric:tabular-nums}
   .tools{display:flex;gap:8px}
+  a.btn{text-decoration:none;color:var(--ink);display:inline-block}
   .btn{border:1.5px solid var(--ink);background:#fff;border-radius:999px;padding:5px 12px;font-weight:700;font-size:.85rem}
   .btn:hover{background:var(--ink);color:#fff}
 
@@ -168,7 +169,7 @@
     <div class="ctl toggle"><input type="checkbox" id="notation" checked><label for="notation">Show notation</label></div>
     <div class="tools">
       <button class="btn" id="dl" title="Save this page to use offline">⬇ Download</button>
-      <button class="btn" id="print" title="Print or save as an A4 PDF">🖨 Print</button>
+      <a class="btn" id="pdf" href="https://fingers.thatviolinguy.com.au/Finger_Traveller.pdf" target="_blank" rel="noopener" title="Open the printable A4 chart">🖨 Printable chart (PDF)</a>
     </div>
   </div>
 
@@ -192,14 +193,14 @@
 
   <footer>
     <p>Finger Traveller · by Zac Johnston · <span id="ver"></span></p>
-    <p class="no-print">Latest version online: <a href="https://fingers.thatviolinguy.com.au/">fingers.thatviolinguy.com.au</a> · <a href="Finger_Traveller.pdf">printable chart (PDF)</a></p>
+    <p class="no-print">Latest version online: <a href="https://fingers.thatviolinguy.com.au/">fingers.thatviolinguy.com.au</a></p>
   </footer>
 </div>
 
 <script>
 (() => {
 "use strict";
-const VERSION = "v1.3 · 26 Nov 2026";
+const VERSION = "v1.4 · 26 Nov 2026";
 // Snapshot of the page before any script changes it, so "Download" always saves a clean, working copy.
 const PRISTINE = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
 
@@ -534,7 +535,6 @@ $("#inst").addEventListener("click", e=>{
   stop(); render();
 });
 $("#tempo").addEventListener("input", e=>{ state.tempo=+e.target.value; $("#bpm").textContent=e.target.value; });
-$("#print").addEventListener("click", ()=>window.print());
 $("#dl").addEventListener("click", ()=>{
   const blob = new Blob([PRISTINE],{type:"text/html"}), url = URL.createObjectURL(blob), a = document.createElement("a");
   a.href=url; a.download="finger-traveller.html"; document.body.append(a); a.click(); a.remove();
