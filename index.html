@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Finger Traveller — Violin &amp; Viola Warm-up</title>
+<meta name="description" content="Finger Traveller: an interactive left-hand warm-up for violin and viola by Zac Johnston.">
+<style>
+  :root{
+    --ink:#14213d; --muted:#5b6478; --bg:#f7f8fc; --card:#ffffff;
+    --teal:#1593a8;  --teal-bg:#e3f4f7;
+    --red:#e5383b;   --red-bg:#fde6e6;
+    --purple:#6a2c91;--purple-bg:#efe4f8;
+    --blue:#1e88c8;  --blue-bg:#e2f1fb;
+    --green:#1f9d55; --green-bg:#e3f5ea;
+    --violet:#8b5cc4;--violet-bg:#f3ecfb;
+    --radius:14px;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  html,body{overflow-x:hidden}
+  body{margin:0;font-family:"Avenir Next","Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--bg);line-height:1.4}
+  button{font:inherit;color:inherit;cursor:pointer}
+  .wrap{max-width:960px;margin:0 auto;padding:16px 14px 48px}
+
+  header{text-align:center;padding:18px 0 6px}
+  header h1{font-size:clamp(2rem,7vw,3.4rem);letter-spacing:.04em;margin:0;font-weight:900;line-height:1}
+  header p{margin:.3em 0 0;font-size:1.15rem;font-weight:600}
+
+  /* Controls */
+  .controls{position:sticky;top:0;z-index:10;background:rgba(247,248,252,.94);backdrop-filter:blur(6px);
+    border-bottom:1px solid #e2e5ee;margin:10px -14px 16px;padding:10px 14px;display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;justify-content:center}
+  .ctl{display:flex;align-items:center;gap:6px;font-size:.9rem;font-weight:600}
+  .ctl label{color:var(--muted)}
+  .seg{display:inline-flex;border:1.5px solid #c9cfdc;border-radius:999px;overflow:hidden;background:#fff}
+  .seg button{border:0;background:none;padding:5px 11px;font-weight:700;font-size:.85rem}
+  .seg button[aria-pressed="true"]{background:var(--ink);color:#fff}
+  input[type=range]{width:110px;accent-color:var(--ink)}
+  .bpm{min-width:3.2em;font-variant-numeric:tabular-nums}
+  .tools{display:flex;gap:8px}
+  .btn{border:1.5px solid var(--ink);background:#fff;border-radius:999px;padding:5px 12px;font-weight:700;font-size:.85rem}
+  .btn:hover{background:var(--ink);color:#fff}
+
+  /* Level cards */
+  .level{background:var(--card);border:2px solid var(--c);border-radius:var(--radius);padding:14px;margin:0 0 16px;
+    background:linear-gradient(0deg,#fff,#fff) padding-box;box-shadow:0 1px 0 rgba(0,0,0,.03)}
+  .level-head{display:flex;flex-wrap:wrap;align-items:center;gap:10px 12px;margin-bottom:10px}
+  .badge{width:48px;height:48px;border-radius:50%;background:var(--c);color:#fff;font-weight:900;font-size:1.5rem;
+    display:grid;place-items:center;flex:none}
+  .title{background:var(--cbg);color:var(--ink);font-weight:900;font-size:1.25rem;letter-spacing:.02em;padding:4px 14px;border-radius:8px;text-transform:uppercase}
+  .play{margin-left:auto;border:0;background:var(--c);color:#fff;border-radius:999px;padding:8px 16px;font-weight:800;display:flex;align-items:center;gap:6px}
+  .play[data-on="1"]{background:var(--ink)}
+  .opts{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;margin-bottom:12px}
+  .chips{display:flex;flex-wrap:wrap;gap:6px}
+  .chip{border:0;background:var(--cbg);border-radius:7px;padding:5px 11px;font-weight:800;font-size:.95rem;font-variant-numeric:tabular-nums}
+  .chip[aria-pressed="true"]{background:var(--c);color:#fff}
+  .sub{font-size:.85rem;color:var(--muted);font-weight:600}
+  .interval{font-size:.9rem;font-weight:700;color:var(--c)}
+  .toggle{display:flex;align-items:center;gap:6px;font-size:.88rem;font-weight:700}
+  .toggle input{accent-color:var(--c);width:18px;height:18px}
+
+  /* Travel path */
+  .path{display:grid;grid-template-columns:repeat(4,1fr);gap:6px 18px;position:relative}
+  .row-label{grid-column:1/-1;font-size:.75rem;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-top:4px}
+  .tile{position:relative;text-align:center}
+  .tile .str{font-weight:900;font-size:1rem}
+  .tile .box{background:var(--cbg);border-radius:8px;padding:6px 4px;margin-top:2px;transition:transform .08s, background .08s}
+  .tile .fing{font-weight:900;font-size:1.25rem;letter-spacing:.06em;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .tile .names{font-size:.8rem;color:var(--muted);font-weight:700;white-space:nowrap}
+  .tile:not(.first)::before{content:"→";position:absolute;left:-15px;top:52%;color:var(--c);font-weight:900}
+  .tile.active .box{background:var(--c);color:#fff;transform:scale(1.05)}
+  .tile.active .names{color:#fff}
+  .tile .fing span.on, .tile .names span.on{text-decoration:underline;text-decoration-thickness:3px;text-underline-offset:4px}
+  .turn{grid-column:1/-1;text-align:right;color:var(--c);font-weight:900;font-size:1.1rem;line-height:1;margin:-2px 6px -2px 0}
+  .whole .tile .fing{font-size:1rem;letter-spacing:.02em}
+  .whole .tile .names{font-size:.7rem}
+
+  /* 2A bridge */
+  .bridge{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .bstep{text-align:center;border-radius:10px;padding:8px 4px;transition:background .08s}
+  .bstep svg{display:block;margin:0 auto 4px;width:100%;max-width:170px;height:auto}
+  .bstep .cap{display:inline-block;background:var(--cbg);border-radius:7px;padding:3px 12px;font-weight:800}
+  .bstep.active{background:var(--cbg)}
+  .bstep.active .cap{background:var(--c);color:#fff}
+
+  /* Frame */
+  .frame{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1.5px solid var(--cbg)}
+  .frame svg{width:100%;max-width:440px;height:auto}
+  .frame .lbl{background:var(--cbg);border-radius:8px;padding:5px 12px;font-weight:900;text-transform:uppercase}
+
+  /* Variations */
+  .vars{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .var{border-radius:10px;padding:10px;text-align:center;border:0;background:var(--vbg);font-weight:800}
+  .var small{display:block;font-weight:600;color:var(--muted);margin-top:4px;font-size:.8rem}
+  .var svg{display:block;margin:6px auto 0;height:34px;width:auto}
+  .var[aria-pressed="true"]{outline:3px solid var(--ink);outline-offset:-3px}
+  .challenge{margin-top:12px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  .challenge output{flex:1 1 260px;background:var(--violet-bg);border-radius:10px;padding:10px 12px;font-weight:700;min-height:2.6em}
+
+  .tips{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px}
+  .tip{background:#fff;border:1.5px dashed #c9cfdc;border-radius:10px;padding:10px 12px;font-size:.92rem}
+  .tip b{display:block;margin-bottom:2px}
+
+  footer{margin-top:24px;text-align:center;font-size:.85rem;color:var(--muted)}
+  footer a{color:inherit}
+
+  .print-only{display:none}
+
+  @media (max-width:600px){
+    .controls{position:static}
+    .seg{flex-wrap:wrap;border-radius:12px}
+    .path{gap:6px 10px}
+    .tile:not(.first)::before{left:-10px}
+    .tile .fing{font-size:1.05rem}
+    .whole .tile .fing{font-size:.78rem}
+    .whole .tile .names{display:none}
+    .vars{grid-template-columns:1fr 1fr}
+    .tips{grid-template-columns:1fr}
+    .play{margin-left:0}
+  }
+
+  @page{size:A4;margin:10mm}
+  @media print{
+    body{background:#fff;font-size:10pt}
+    .controls,.play,.challenge,.no-print,footer .tools{display:none!important}
+    .print-only{display:block}
+    .wrap{max-width:none;padding:0}
+    header{padding:0 0 4mm}
+    .level{break-inside:avoid;margin-bottom:4mm;padding:3mm 4mm;box-shadow:none}
+    .chip{padding:2px 7px}
+    * {-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>FINGER TRAVELLER</h1>
+    <p><span data-inst-name>Violin</span> warm-up</p>
+  </header>
+
+  <div class="controls" role="toolbar" aria-label="Practice settings">
+    <div class="ctl"><label>Instrument</label>
+      <div class="seg" id="inst">
+        <button aria-pressed="true" data-v="violin">Violin</button><button aria-pressed="false" data-v="viola">Viola</button>
+      </div>
+    </div>
+    <div class="ctl"><label for="tempo">Tempo</label>
+      <input id="tempo" type="range" min="40" max="160" step="2" value="72"><span class="bpm" id="bpm">72</span>
+    </div>
+    <div class="ctl toggle"><input type="checkbox" id="loop"><label for="loop">Loop</label></div>
+    <div class="ctl toggle"><input type="checkbox" id="click" checked><label for="click">Click</label></div>
+    <div class="ctl toggle"><input type="checkbox" id="names" checked><label for="names">Note names</label></div>
+    <div class="tools">
+      <button class="btn" id="dl" title="Save this page to use offline">⬇ Download</button>
+      <button class="btn" id="print" title="Print or save as an A4 PDF">🖨 Print</button>
+    </div>
+  </div>
+
+  <main id="levels"></main>
+
+  <section class="level" style="--c:var(--violet);--cbg:var(--violet-bg)" aria-labelledby="var-h">
+    <div class="level-head"><span class="title" id="var-h" style="font-size:1.5rem">Variations</span>
+      <span class="sub">Tap one to hear it applied when you press Play.</span></div>
+    <div class="vars" id="vars"></div>
+    <div class="challenge">
+      <button class="btn" id="spin">🎲 Give me a challenge</button>
+      <output id="challenge" aria-live="polite">Pick a level, a finger pair and a variation — or let the dice decide.</output>
+    </div>
+  </section>
+
+  <section class="tips" aria-label="Focus points">
+    <div class="tip"><b>Left wrist</b>Keep it soft and in line with the forearm. The hand travels across the strings as one frame — fingers don't reach, the elbow brings them.</div>
+    <div class="tip"><b>Bow quality</b>Every note gets the same tone. Listen for even contact as you cross strings, especially on the turnaround.</div>
+  </section>
+
+  <footer>
+    <p>Finger Traveller · by Zac Johnston · <span id="ver"></span></p>
+    <p class="no-print">Latest version online: <a href="https://taceted.github.io/Finger-Traveller/">taceted.github.io/Finger-Traveller</a> · <a href="Finger_Traveller.pdf">printable chart (PDF)</a></p>
+  </footer>
+</div>
+
+<script>
+(() => {
+"use strict";
+const VERSION = "v1.0 · 26 Nov 2026";
+// Snapshot of the page before any script changes it, so "Download" always saves a clean, working copy.
+const PRISTINE = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+
+/* ---------- Music model ---------- */
+const INSTRUMENTS = {
+  // strings listed high → low, matching the travel path on the chart
+  violin:{name:"Violin", strings:[{n:"E",l:2,m:76},{n:"A",l:5,m:69},{n:"D",l:1,m:62},{n:"G",l:4,m:55}]},
+  viola: {name:"Viola",  strings:[{n:"A",l:5,m:69},{n:"D",l:1,m:62},{n:"G",l:4,m:55},{n:"C",l:0,m:48}]},
+};
+const LETTERS = ["C","D","E","F","G","A","B"];
+const NAT = [0,2,4,5,7,9,11];
+
+// Close / Wide placements (semitones above the open string) for each finger combination.
+const PAIRS = {
+  "1-0":{close:{1:1},wide:{1:2},iv:["minor 2nd","major 2nd"]},
+  "2-0":{close:{2:3},wide:{2:4},iv:["minor 3rd","major 3rd"]},
+  "3-0":{close:{3:5},wide:{3:6},iv:["perfect 4th","augmented 4th (tritone)"]},
+  "4-0":{close:{4:7},wide:{4:8},iv:["perfect 5th","minor 6th"]},
+  "1-2":{close:{1:2,2:3},wide:{1:2,2:4},iv:["minor 2nd","major 2nd"]},
+  "2-3":{close:{2:4,3:5},wide:{2:3,3:5},iv:["minor 2nd","major 2nd"]},
+  "3-4":{close:{3:6,4:7},wide:{3:5,4:7},iv:["minor 2nd","major 2nd"]},
+  "1-3":{close:{1:2,3:5},wide:{1:1,3:5},iv:["minor 3rd","major 3rd"]},
+  "2-4":{close:{2:4,4:7},wide:{2:3,4:7},iv:["minor 3rd","major 3rd"]},
+  "1-4":{close:{1:2,4:7},wide:{1:1,4:7},iv:["perfect 4th","augmented 4th (tritone)"]},
+};
+// Hand frames for levels 2A, 3 and 4 — which two neighbouring fingers sit close together.
+const FRAMES = {
+  low1: {label:"0–1 close", s:[0,1,3,5,7], close:[0,1]},
+  low2: {label:"1–2 close", s:[0,2,3,5,7], close:[1,2]},
+  high2:{label:"2–3 close", s:[0,2,4,5,7], close:[2,3]},
+  high3:{label:"3–4 close", s:[0,2,4,6,7], close:[3,4]},
+};
+
+function spell(str, finger, semis){
+  if(finger===0) return str.n;
+  const step = (finger===4 && semis===8) ? 5 : finger;          // stretched 4 reads as a minor 6th
+  const li = (str.l + step) % 7;
+  const natural = (NAT[li] - NAT[str.l] + 12) % 12;
+  const diff = semis - natural;
+  return LETTERS[li] + ({"-2":"𝄫","-1":"♭","0":"","1":"♯","2":"𝄪"}[diff] ?? "?");
+}
+const note = (str, f, s) => ({f, midi:str.m + s, name:spell(str,f,s)});
+
+/* ---------- Levels ---------- */
+const LEVELS = [
+  {id:"1", title:"Finger + Open", c:"teal", kind:"pair", opts:["1-0","2-0","3-0","4-0"]},
+  {id:"2", title:"Two Fingers",   c:"red",  kind:"pair", opts:["1-2","2-3","3-4","1-3","2-4","1-4"]},
+  {id:"2A",title:"Double-stop Bridge", c:"purple", kind:"bridge"},
+  {id:"3", title:"Add the Open",  c:"blue", kind:"frame", fingers:[2,1,0]},
+  {id:"4", title:"Whole Hand",    c:"green",kind:"frame", fingers:[4,3,2,1,0], whole:true},
+];
+const state = {inst:"violin", tempo:72, variation:"separate",
+  lv:{"1":{opt:"1-0",w:"close",byString:false},"2":{opt:"1-2",w:"close"},"2A":{pair:0,frame:"high2"},"3":{frame:"high2"},"4":{frame:"high2"}}};
+
+// Build the step list for a level: each step = {si: string index, notes:[...], dbl?}
+function steps(L){
+  const strs = INSTRUMENTS[state.inst].strings, st = state.lv[L.id];
+  const out = [];
+  if(L.kind==="pair"){
+    const travel = (dir) => strs.map((s,i)=>i).sort((a,b)=>dir?a-b:b-a);
+    for(const dir of [1,0]){                   // 1 = high→low (down the strings), 0 = back up
+      for(const si of travel(dir)){
+        let key = st.opt;
+        if(L.id==="1" && st.byString) key = `${si+1}-0`;   // E:1-0, A:2-0, D:3-0, G:4-0
+        const P = PAIRS[key][st.w];
+        let fs = key.split("-").map(Number).sort((a,b)=>b-a);  // high finger first on the way down
+        if(!dir) fs.reverse();
+        out.push({si, dir, notes: fs.map(f=>note(strs[si], f, f?P[f]:0))});
+      }
+    }
+  } else if(L.kind==="frame"){
+    const F = FRAMES[st.frame].s;
+    for(const dir of [1,0]){
+      const order = dir? [0,1,2,3] : [3,2,1,0];
+      for(const si of order){
+        const fs = dir? L.fingers : [...L.fingers].reverse();
+        out.push({si, dir, notes: fs.map(f=>note(strs[si], f, F[f]))});
+      }
+    }
+  } else if(L.kind==="bridge"){
+    const F = FRAMES[st.frame].s, hi = strs[st.pair], lo = strs[st.pair+1];
+    const a = note(hi,1,F[1]), b = note(lo,2,F[2]);
+    out.push({si:st.pair, notes:[a], cap:`${hi.n}: 1`});
+    out.push({si:st.pair, notes:[a,b], dbl:true, cap:"Together"});
+    out.push({si:st.pair+1, notes:[b], cap:`${lo.n}: 2`});
+  }
+  return out;
+}
+
+/* ---------- Rendering ---------- */
+const $ = (s, r=document) => r.querySelector(s);
+const h = (tag, attrs={}, html="") => { const e=document.createElement(tag); for(const k in attrs) e.setAttribute(k,attrs[k]); e.innerHTML=html; return e; };
+
+function render(){
+  const inst = INSTRUMENTS[state.inst];
+  document.querySelectorAll("[data-inst-name]").forEach(e=>e.textContent=inst.name);
+  const main = $("#levels"); main.innerHTML="";
+  for(const L of LEVELS){
+    const st = state.lv[L.id];
+    const sec = h("section",{class:"level"+(L.whole?" whole":""),id:"lv"+L.id,style:`--c:var(--${L.c});--cbg:var(--${L.c}-bg)`});
+    const head = h("div",{class:"level-head"},
+      `<span class="badge">${L.id}</span><span class="title">${L.title}</span>`);
+    const play = h("button",{class:"play no-print","data-lv":L.id,"aria-label":`Play level ${L.id}`},"▶ Play");
+    head.append(play); sec.append(head);
+
+    const opts = h("div",{class:"opts"});
+    if(L.kind==="pair"){
+      const chips = h("div",{class:"chips",role:"group","aria-label":"Finger combination"});
+      for(const o of L.opts) chips.append(h("button",{class:"chip","data-set":`${L.id}|opt|${o}`,"aria-pressed":String(st.opt===o && !st.byString)},o));
+      const cw = h("div",{class:"seg",role:"group","aria-label":"Close or wide"});
+      for(const w of ["close","wide"]) cw.append(h("button",{"data-set":`${L.id}|w|${w}`,"aria-pressed":String(st.w===w)},w[0].toUpperCase()+w.slice(1)));
+      opts.append(chips, cw);
+      const iv = st.byString ? "a different interval on each string" : PAIRS[st.opt].iv[st.w==="close"?0:1];
+      opts.append(h("span",{class:"interval"},iv));
+      if(L.id==="1"){
+        const t = h("label",{class:"toggle"},`<input type="checkbox" data-set="1|byString|x" ${st.byString?"checked":""}> Change fingers by string`);
+        opts.append(t);
+      }
+    } else {
+      if(L.kind==="bridge"){
+        const strs = inst.strings, seg = h("div",{class:"seg",role:"group","aria-label":"String pair"});
+        for(let i=0;i<3;i++) seg.append(h("button",{"data-set":`2A|pair|${i}`,"aria-pressed":String(st.pair===i)},`${strs[i].n}–${strs[i+1].n}`));
+        opts.append(h("span",{class:"sub"},"Strings"), seg);
+      }
+      const seg = h("div",{class:"seg",role:"group","aria-label":"Hand frame"});
+      for(const k in FRAMES) seg.append(h("button",{"data-set":`${L.id}|frame|${k}`,"aria-pressed":String(st.frame===k)},FRAMES[k].label));
+      opts.append(h("span",{class:"sub"},"Hand frame"), seg);
+    }
+    sec.append(opts);
+
+    const S = steps(L), showNames = $("#names").checked;
+    if(L.kind==="bridge"){
+      const g = h("div",{class:"bridge"});
+      S.forEach((s,i)=>{
+        const strs = inst.strings, hi=strs[st.pair].n, lo=strs[st.pair+1].n;
+        const top = s.notes.some(n=>n.f===1), bot = s.notes.some(n=>n.f===2);
+        const svg = `<svg viewBox="0 0 170 70" aria-hidden="true">
+          <text x="4" y="24" font-weight="800" font-size="16" fill="#14213d">${hi}</text>
+          <text x="4" y="56" font-weight="800" font-size="16" fill="#14213d">${lo}</text>
+          <line x1="24" y1="19" x2="166" y2="19" stroke="#14213d" stroke-width="2"/>
+          <line x1="24" y1="51" x2="166" y2="51" stroke="#14213d" stroke-width="2"/>
+          ${top?`<circle cx="55" cy="19" r="12" fill="var(--purple)"/><text x="55" y="24.5" text-anchor="middle" font-weight="800" font-size="15" fill="#fff">1</text>`:""}
+          ${bot?`<circle cx="130" cy="51" r="12" fill="var(--purple)"/><text x="130" y="56.5" text-anchor="middle" font-weight="800" font-size="15" fill="#fff">2</text>`:""}
+        </svg>`;
+        const nm = showNames ? `<div class="sub">${s.notes.map(n=>n.name).join(" + ")}</div>` : "";
+        g.append(h("div",{class:"bstep","data-step":i},`${svg}<div class="cap">${s.cap}</div>${nm}`));
+      });
+      sec.append(g);
+    } else {
+      const g = h("div",{class:"path"});
+      S.forEach((s,i)=>{
+        if(i===0) g.append(h("div",{class:"row-label"},"Down the strings"));
+        if(i===4){ g.append(h("div",{class:"turn","aria-hidden":"true"},"↩ turn around")); }
+        const str = inst.strings[s.si].n;
+        const fing = s.notes.map((n,j)=>`<span data-n="${j}">${n.f}</span>`).join("-");
+        const nm = s.notes.map((n,j)=>`<span data-n="${j}">${n.name}</span>`).join(" ");
+        g.append(h("div",{class:"tile"+(i%4===0?" first":""),"data-step":i},
+          `<div class="str">${str}</div><div class="box"><div class="fing">${fing}</div>${showNames?`<div class="names">${nm}</div>`:""}</div>`));
+      });
+      sec.append(g);
+    }
+    if(L.kind!=="pair"){
+      const F = FRAMES[st.frame];
+      // spacing reflects distance: close pair drawn nearer
+      const pos = F.s.map(v=>30 + v*(370/7));
+      let svg = `<svg viewBox="0 0 430 60" aria-label="Hand frame: fingers ${F.label}">
+        <line x1="10" y1="38" x2="420" y2="38" stroke="#14213d" stroke-width="2.5"/>
+        <line x1="10" y1="28" x2="10" y2="48" stroke="#14213d" stroke-width="2.5"/><line x1="420" y1="28" x2="420" y2="48" stroke="#14213d" stroke-width="2.5"/>`;
+      const [a,b] = F.close, mx=(pos[a]+pos[b])/2;
+      svg += `<polyline points="${pos[a]},20 ${mx},6 ${pos[b]},20" fill="none" stroke="var(--red)" stroke-width="3"/>`;
+      pos.forEach((x,f)=>svg+=`<circle cx="${x}" cy="38" r="15" fill="#fff" stroke="#14213d" stroke-width="2.5"/><text x="${x}" y="44" text-anchor="middle" font-weight="800" font-size="17" fill="#14213d">${f}</text>`);
+      svg += `</svg>`;
+      sec.append(h("div",{class:"frame"},`<span class="lbl">Same frame</span>${svg}`));
+    }
+    main.append(sec);
+  }
+}
+
+/* ---------- Variations ---------- */
+const VARS = [
+  {id:"separate", name:"Separate bows", c:"green", svg:`<svg viewBox="0 0 120 30"><g stroke="#14213d" stroke-width="4" stroke-linecap="round"><line x1="15" y1="4" x2="15" y2="26"/><line x1="45" y1="4" x2="45" y2="26"/><line x1="75" y1="4" x2="75" y2="26"/><line x1="105" y1="4" x2="105" y2="26"/></g></svg>`},
+  {id:"slur",     name:"Slur 2 / 3 / 4", c:"red", sub:"Notes join under one bow", svg:`<svg viewBox="0 0 160 30" fill="none" stroke="#14213d" stroke-width="2.5"><path d="M8 16 Q22 2 36 16"/><path d="M52 16 Q72 0 92 16"/><path d="M106 16 Q131 -2 156 16"/><g fill="#14213d" stroke="none"><circle cx="10" cy="24" r="4"/><circle cx="34" cy="24" r="4"/><circle cx="54" cy="24" r="4"/><circle cx="72" cy="24" r="4"/><circle cx="90" cy="24" r="4"/><circle cx="108" cy="24" r="4"/><circle cx="124" cy="24" r="4"/><circle cx="140" cy="24" r="4"/><circle cx="156" cy="24" r="4"/></g></svg>`},
+  {id:"hooked",   name:"Hooked bows", c:"purple", sub:"Two notes, same direction, stop between", svg:`<svg viewBox="0 0 120 30" fill="none" stroke="#14213d" stroke-width="2.5"><path d="M10 16 Q30 0 50 16"/><path d="M70 16 Q90 0 110 16"/><g fill="#14213d" stroke="none"><circle cx="12" cy="24" r="4"/><circle cx="48" cy="24" r="4"/><circle cx="72" cy="24" r="4"/><circle cx="108" cy="24" r="4"/></g></svg>`},
+  {id:"position", name:"Change position", c:"blue", sub:"Same shapes in 2nd, 3rd, higher", svg:`<svg viewBox="0 0 140 30"><text x="0" y="24" font-size="24">✋</text><text x="32" y="22" font-size="20" font-weight="800" fill="#14213d">→</text><g fill="#14213d"><circle cx="66" cy="16" r="5"/><circle cx="86" cy="16" r="5"/><circle cx="106" cy="16" r="5"/><circle cx="126" cy="16" r="5"/></g></svg>`},
+  {id:"longshort",name:"Long-short / Short-long", c:"red", sub:"Dotted rhythms", svg:`<svg viewBox="0 0 150 30" stroke="#14213d" stroke-width="4" stroke-linecap="round"><line x1="6" y1="15" x2="44" y2="15"/><line x1="54" y1="15" x2="64" y2="15"/><line x1="75" y1="3" x2="75" y2="27" stroke-width="3"/><line x1="86" y1="15" x2="96" y2="15"/><line x1="106" y1="15" x2="144" y2="15"/></svg>`},
+  {id:"bystring", name:"Change fingers by string", c:"green", sub:"Level 1: 1-0 | 2-0 | 3-0 | 4-0", svg:`<svg viewBox="0 0 150 30"><g fill="#fff" stroke="#14213d" stroke-width="2">${[18,56,94,132].map((x,i)=>`<circle cx="${x}" cy="15" r="12"/>`).join("")}</g><g font-weight="800" font-size="14" text-anchor="middle" fill="#14213d">${[18,56,94,132].map((x,i)=>`<text x="${x}" y="20">${i+1}</text>`).join("")}</g></svg>`},
+];
+function renderVars(){
+  const box = $("#vars"); box.innerHTML="";
+  for(const v of VARS){
+    box.append(h("button",{class:"var","data-var":v.id,"aria-pressed":String(state.variation===v.id||(v.id==="bystring"&&state.lv["1"].byString)),
+      style:`--vbg:var(--${v.c}-bg)`}, `${v.name}${v.sub?`<small>${v.sub}</small>`:""}${v.svg}`));
+  }
+}
+
+/* ---------- Audio ---------- */
+let ctx=null, playing=null, timers=[];
+function audio(){ if(!ctx) ctx = new (window.AudioContext||window.webkitAudioContext)(); if(ctx.state==="suspended") ctx.resume(); return ctx; }
+const hz = m => 440*Math.pow(2,(m-69)/12);
+function tone(m, t, dur, legato){
+  const a=audio(), o1=a.createOscillator(), o2=a.createOscillator(), f=a.createBiquadFilter(), g=a.createGain();
+  const vib=a.createOscillator(), vg=a.createGain();
+  o1.type=o2.type="sawtooth"; o1.frequency.value=hz(m); o2.frequency.value=hz(m)*1.003;
+  vib.frequency.value=5.4; vg.gain.value=hz(m)*0.004; vib.connect(vg); vg.connect(o1.frequency); vg.connect(o2.frequency);
+  f.type="lowpass"; f.frequency.value=Math.min(3200, hz(m)*5); f.Q.value=0.7;
+  const sound = legato ? dur*0.98 : dur*0.8, peak=0.11;
+  g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(peak,t+0.04);
+  g.gain.setValueAtTime(peak*0.85,t+Math.max(0.05,sound-0.06)); g.gain.exponentialRampToValueAtTime(0.0001,t+sound);
+  o1.connect(f); o2.connect(f); f.connect(g); g.connect(a.destination);
+  for(const o of [o1,o2,vib]){ o.start(t); o.stop(t+sound+0.05); }
+}
+function click(t, accent){
+  const a=audio(), o=a.createOscillator(), g=a.createGain();
+  o.frequency.value = accent?1500:1000; g.gain.setValueAtTime(0.08,t); g.gain.exponentialRampToValueAtTime(0.0001,t+0.04);
+  o.connect(g); g.connect(a.destination); o.start(t); o.stop(t+0.05);
+}
+function stop(){
+  timers.forEach(clearTimeout); timers=[];
+  document.querySelectorAll(".active").forEach(e=>e.classList.remove("active"));
+  document.querySelectorAll(".on").forEach(e=>e.classList.remove("on"));
+  document.querySelectorAll(".play").forEach(b=>{b.dataset.on="0"; b.textContent="▶ Play";});
+  playing=null;
+}
+function play(id){
+  if(playing===id){ stop(); return; }
+  stop(); playing=id;
+  const L = LEVELS.find(l=>l.id===id), S = steps(L), a = audio();
+  const btn = $(`.play[data-lv="${id}"]`); btn.dataset.on="1"; btn.textContent="■ Stop";
+  const beat = 60/state.tempo, v = state.variation, legato = v==="slur";
+  let t = a.currentTime + 0.15, n = 0;
+  const sec = $("#lv"+id);
+  const at = (time, fn) => timers.push(setTimeout(fn, Math.max(0,(time - a.currentTime)*1000)));
+  S.forEach((s,i)=>{
+    const tile = sec.querySelector(`[data-step="${i}"]`);
+    if(s.dbl){
+      const d = beat*2;
+      s.notes.forEach(nn=>tone(nn.midi,t,d,true)); if($("#click").checked) click(t,true);
+      at(t,()=>{ sec.querySelectorAll(".active").forEach(e=>e.classList.remove("active")); tile.classList.add("active"); });
+      t+=d; n++; return;
+    }
+    s.notes.forEach((nn,j)=>{
+      let d = beat;
+      if(v==="longshort") d = (n%2===0)? beat*1.5 : beat*0.5;
+      if(v==="hooked")    d = (n%2===0)? beat*1.5 : beat*0.5;
+      const leg = legato && j < s.notes.length-1;
+      tone(nn.midi, t, d, leg);
+      if($("#click").checked && (v!=="longshort"&&v!=="hooked" || n%2===0)) click(t, j===0);
+      const tt=t;
+      at(tt,()=>{
+        sec.querySelectorAll(".active").forEach(e=>e.classList.remove("active"));
+        sec.querySelectorAll(".on").forEach(e=>e.classList.remove("on"));
+        tile.classList.add("active"); tile.querySelectorAll(`[data-n="${j}"]`).forEach(e=>e.classList.add("on"));
+      });
+      t+=d; n++;
+    });
+  });
+  at(t, ()=>{ if(playing!==id) return; if($("#loop").checked){ playing=null; play(id); } else stop(); });
+}
+
+/* ---------- Events ---------- */
+document.addEventListener("click", e=>{
+  const set = e.target.closest("[data-set]");
+  if(set && set.tagName!=="INPUT"){
+    const [id,k,v] = set.dataset.set.split("|"), st = state.lv[id];
+    if(k==="pair") st.pair=+v; else st[k]=v;
+    if(id==="1" && k==="opt") st.byString=false;
+    stop(); render(); renderVars(); return;
+  }
+  const p = e.target.closest(".play"); if(p){ play(p.dataset.lv); return; }
+  const vb = e.target.closest("[data-var]");
+  if(vb){
+    const v = vb.dataset.var;
+    if(v==="bystring"){ state.lv["1"].byString = !state.lv["1"].byString; render(); }
+    else state.variation = v;
+    renderVars(); stop(); return;
+  }
+});
+document.addEventListener("change", e=>{
+  if(e.target.matches('[data-set="1|byString|x"]')){ state.lv["1"].byString = e.target.checked; stop(); render(); renderVars(); }
+  if(e.target.id==="names") render();
+});
+$("#inst").addEventListener("click", e=>{
+  const b = e.target.closest("button"); if(!b) return;
+  state.inst = b.dataset.v; $("#inst").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));
+  stop(); render();
+});
+$("#tempo").addEventListener("input", e=>{ state.tempo=+e.target.value; $("#bpm").textContent=e.target.value; });
+$("#print").addEventListener("click", ()=>window.print());
+$("#dl").addEventListener("click", ()=>{
+  const blob = new Blob([PRISTINE],{type:"text/html"}), url = URL.createObjectURL(blob), a = document.createElement("a");
+  a.href=url; a.download="finger-traveller.html"; document.body.append(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 2000);
+});
+$("#spin").addEventListener("click", ()=>{
+  const pick = arr => arr[Math.floor(Math.random()*arr.length)];
+  const L = pick(LEVELS), V = pick(VARS.filter(v=>v.id!=="bystring"));
+  let what = "";
+  if(L.kind==="pair"){ const o=pick(L.opts), w=pick(["close","wide"]); state.lv[L.id].opt=o; state.lv[L.id].w=w; if(L.id==="1") state.lv["1"].byString=false; what=`${o}, ${w}`; }
+  else { const k=pick(Object.keys(FRAMES)); state.lv[L.id].frame=k; what=`frame ${FRAMES[k].label}`; }
+  state.variation = V.id;
+  stop(); render(); renderVars();
+  $("#challenge").textContent = `Level ${L.id} (${L.title}) — ${what} — with ${V.name.toLowerCase()}.`;
+  $("#lv"+L.id).scrollIntoView({behavior:"smooth",block:"center"});
+});
+
+$("#ver").textContent = VERSION;
+render(); renderVars();
+})();
+</script>
+</body>
+</html>
