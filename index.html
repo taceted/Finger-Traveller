@@ -62,7 +62,7 @@
   .toggle input{accent-color:var(--c);width:18px;height:18px}
 
   /* Travel path */
-  .path{display:grid;grid-template-columns:repeat(4,1fr);gap:6px 18px;position:relative}
+  .path{display:grid;grid-template-columns:repeat(var(--cols,4),minmax(0,1fr));gap:6px 18px;position:relative}
   .row-label{grid-column:1/-1;font-size:.75rem;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-top:4px}
   .tile{position:relative;text-align:center}
   .tile .str{font-weight:900;font-size:1rem}
@@ -83,19 +83,11 @@
   .stf .ac.bar{stroke-width:2.4}
   .stf .cl{fill:none;stroke:#14213d;stroke-width:1.7;stroke-linecap:round}
   .stf g.on .hd{fill:var(--c)} .stf g.on .hd.open{fill:var(--c)} .stf g.on .ac{stroke:var(--c)} .stf g.on .st{stroke:var(--c)}
-  .bstep .stf{max-width:170px;margin:6px auto 0}
-  .bstep.active .stf .hd{fill:var(--c)}
   .turn{grid-column:1/-1;text-align:right;color:var(--c);font-weight:900;font-size:1.1rem;line-height:1;margin:-2px 6px -2px 0}
   .whole .tile .fing{font-size:1rem;letter-spacing:.02em}
+  .bridgelv .tile .fing{letter-spacing:0}
   .whole .tile .names{font-size:.7rem}
 
-  /* 2A bridge */
-  .bridge{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-  .bstep{text-align:center;border-radius:10px;padding:8px 4px;transition:background .08s}
-  .bstep svg{display:block;margin:0 auto 4px;width:100%;max-width:170px;height:auto}
-  .bstep .cap{display:inline-block;background:var(--cbg);border-radius:7px;padding:3px 12px;font-weight:800}
-  .bstep.active{background:var(--cbg)}
-  .bstep.active .cap{background:var(--c);color:#fff}
 
   /* Frame */
   .frame{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1.5px solid var(--cbg)}
@@ -129,6 +121,9 @@
     .whole .tile .fing{font-size:.95rem}
     .path{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 10px}
     .tile::before{display:none}
+    .path.bridgelv{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+    .bridgelv .tile .fing{font-size:.8rem}
+    .bridgelv .tile .names{display:none}
     .whole .tile .names{display:none}
     .vars{grid-template-columns:1fr 1fr}
     .tips{grid-template-columns:1fr}
@@ -201,7 +196,7 @@
 <script>
 (() => {
 "use strict";
-const VERSION = "v1.5 · 26 Nov 2026";
+const VERSION = "v1.6 · 26 Nov 2026";
 // Snapshot of the page before any script changes it, so "Download" always saves a clean, working copy.
 const PRISTINE = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
 
@@ -267,12 +262,12 @@ function intervalName(a, b){
 const LEVELS = [
   {id:"1", title:"Finger + Open", c:"teal", kind:"pair", opts:["1-0","2-0","3-0","4-0"]},
   {id:"2", title:"Two Fingers",   c:"red",  kind:"pair", opts:["1-2","2-3","3-4","1-3","2-4","1-4"]},
-  {id:"2A",title:"Double-stop Bridge", c:"purple", kind:"bridge"},
+  {id:"2A",title:"Double-stop Bridge", c:"purple", kind:"bridge", opts:["1-2","2-3","3-4","2-1","3-2","4-3"]},
   {id:"3", title:"Add the Open",  c:"blue", kind:"frame", fingers:[2,1,0]},
   {id:"4", title:"Whole Hand",    c:"green",kind:"frame", fingers:[4,3,2,1,0], whole:true},
 ];
 const state = {inst:"violin", tempo:72, variation:"separate",
-  lv:{"1":{opt:"1-0",w:"close",byString:false,pos:1},"2":{opt:"1-2",w:"close",pos:1},"2A":{pair:0,frame:"high2",pos:1},"3":{frame:"high2",pos:1},"4":{frame:"high2",pos:1}}};
+  lv:{"1":{opt:"1-0",w:"close",byString:false,pos:1},"2":{opt:"1-2",w:"close",pos:1},"2A":{opt:"1-2",frame:"high2",pos:1},"3":{frame:"high2",pos:1},"4":{frame:"high2",pos:1}}};
 
 // Build the step list for a level: each step = {si: string index, notes:[...], dbl?}
 function steps(L){
@@ -300,11 +295,17 @@ function steps(L){
       }
     }
   } else if(L.kind==="bridge"){
-    const F = FRAMES[st.frame].s, hi = strs[st.pair], lo = strs[st.pair+1];
-    const a = note(hi,1,F[1],st.pos), b = note(lo,2,F[2],st.pos);
-    out.push({si:st.pair, notes:[a], cap:`${hi.n}: 1`});
-    out.push({si:st.pair, notes:[a,b], dbl:true, cap:"Together"});
-    out.push({si:st.pair+1, notes:[b], cap:`${lo.n}: 2`});
+    // Finger x on the upper string, add finger y on the lower string (double stop), then lift x.
+    // Travels across the string pairs (E/A → A/D → D/G) and back, like the other levels.
+    const F = FRAMES[st.frame].s, [fx, fy] = st.opt.split("-").map(Number);
+    for(const dir of [1,0]){
+      for(const i of dir ? [0,1,2] : [2,1,0]){
+        const hi = strs[i], lo = strs[i+1];
+        const a = note(hi, fx, F[fx], st.pos), b = note(lo, fy, F[fy], st.pos);
+        const ev = dir ? [a, [a,b], b] : [b, [b,a], a];
+        out.push({si:i, dir, pairLabel: dir ? `${hi.n} + ${lo.n}` : `${lo.n} + ${hi.n}`, notes: ev});
+      }
+    }
   }
   return out;
 }
@@ -332,22 +333,25 @@ function accidental(a, x, y){
 function staff(notes, opts={}){
   const clef = CLEFS[state.inst==="viola"?"alto":"treble"], T = 24, sp = 8, B = T + 4*sp;
   const y = d => B - (d - clef.bottom)*sp/2;
-  const n = opts.chord ? 1 : notes.length, step = 30, x0 = 36, W = x0 + n*step + 2, H = B + 26;
-  let out = `<svg viewBox="0 0 ${W} ${H}" style="max-width:${Math.round(W*(opts.scale||1.05))}px" role="img" aria-label="${notes.map(q=>q.name).join(", ")}">`;
+  const items = notes.map(e => Array.isArray(e) ? e : [e]);
+  const n = items.length, step = items.some(c=>c.length>1) ? 38 : 30, x0 = 36, W = x0 + n*step + 2, H = B + 26;
+  let out = `<svg viewBox="0 0 ${W} ${H}" style="max-width:${Math.round(W*(opts.scale||1.05))}px" role="img" aria-label="${items.map(c=>c.map(q=>q.name).join(" and ")).join(", ")}">`;
   for(let i=0;i<5;i++) out += `<line class="ln" x1="0" x2="${W}" y1="${T+i*sp}" y2="${T+i*sp}"/>`;
   out += `<g transform="translate(5 ${T})">${clef.svg}</g>`;
-  notes.forEach((q,j)=>{
-    const d = diatonic(q), yy = y(d), x = x0 + 8 + (opts.chord?0:j*step);
+  items.forEach((chord,j)=>{
+    const x = x0 + 8 + j*step, ds = chord.map(diatonic), lo = Math.min(...ds), hi = Math.max(...ds);
     let g = `<g data-n="${j}">`;
-    for(let l=clef.bottom-2; l>=d; l-=2) g += `<line class="ln" x1="${x-8}" x2="${x+8}" y1="${y(l)}" y2="${y(l)}"/>`;
-    for(let l=clef.bottom+10; l<=d; l+=2) g += `<line class="ln" x1="${x-8}" x2="${x+8}" y1="${y(l)}" y2="${y(l)}"/>`;
-    g += accidental(q.name.slice(1), x - 14, yy);
-    g += `<ellipse class="hd${opts.whole?" open":""}" cx="${x}" cy="${yy}" rx="5" ry="3.7" transform="rotate(-20 ${x} ${yy})"/>`;
-    if(!opts.whole){
-      const up = d < clef.bottom + 4;
-      g += up ? `<line class="st" x1="${x+4.6}" x2="${x+4.6}" y1="${yy-1}" y2="${yy-25}"/>`
-              : `<line class="st" x1="${x-4.6}" x2="${x-4.6}" y1="${yy+1}" y2="${yy+25}"/>`;
-    }
+    for(let l=clef.bottom-2; l>=lo; l-=2) g += `<line class="ln" x1="${x-8}" x2="${x+8}" y1="${y(l)}" y2="${y(l)}"/>`;
+    for(let l=clef.bottom+10; l<=hi; l+=2) g += `<line class="ln" x1="${x-8}" x2="${x+8}" y1="${y(l)}" y2="${y(l)}"/>`;
+    chord.forEach((q,k)=>{
+      const yy = y(ds[k]);
+      // stack accidentals sideways if a chord has two
+      g += accidental(q.name.slice(1), x - 14 - (k>0 && chord[0].name.length>1 ? 8 : 0), yy);
+      g += `<ellipse class="hd" cx="${x}" cy="${yy}" rx="5" ry="3.7" transform="rotate(-20 ${x} ${yy})"/>`;
+    });
+    const up = (lo + hi)/2 < clef.bottom + 4;
+    g += up ? `<line class="st" x1="${x+4.6}" x2="${x+4.6}" y1="${y(lo)-1}" y2="${y(hi)-25}"/>`
+            : `<line class="st" x1="${x-4.6}" x2="${x-4.6}" y1="${y(hi)+1}" y2="${y(lo)+25}"/>`;
     out += g + `</g>`;
   });
   return out + `</svg>`;
@@ -385,13 +389,16 @@ function render(){
       }
     } else {
       if(L.kind==="bridge"){
-        const strs = inst.strings, seg = h("div",{class:"seg",role:"group","aria-label":"String pair"});
-        for(let i=0;i<3;i++) seg.append(h("button",{"data-set":`2A|pair|${i}`,"aria-pressed":String(st.pair===i)},`${strs[i].n}–${strs[i+1].n}`));
-        opts.append(h("span",{class:"sub"},"Strings"), seg);
+        const chips = h("div",{class:"chips",role:"group","aria-label":"Fingers: upper string then lower string"});
+        for(const o of L.opts) chips.append(h("button",{class:"chip","data-set":`${L.id}|opt|${o}`,"aria-pressed":String(st.opt===o),
+          title:`${o[0]} on the upper string, ${o[2]} on the lower string`},o.replace("-"," → ")));
+        const [a,b] = steps(L)[0].notes[1];
+        opts.append(chips, h("span",{class:"interval"},`double stop: ${intervalName(a,b)}`));
       }
       const seg = h("div",{class:"seg",role:"group","aria-label":"Hand frame"});
       for(const k in FRAMES) seg.append(h("button",{"data-set":`${L.id}|frame|${k}`,"aria-pressed":String(st.frame===k)},FRAMES[k].label));
-      opts.append(h("span",{class:"sub"},"Hand frame"), seg);
+      const fw = h("span",{class:"posw"}); fw.append(h("span",{class:"sub"},"Hand frame"), seg);
+      opts.append(fw);
     }
     const ps = h("div",{class:"seg",role:"group","aria-label":"Position"});
     for(let p=1;p<=4;p++) ps.append(h("button",{"data-set":`${L.id}|pos|${p}`,"aria-pressed":String(st.pos===p)},`${p}${["st","nd","rd","th"][p-1]}`));
@@ -400,37 +407,19 @@ function render(){
     sec.append(opts);
 
     const S = steps(L), showNames = $("#names").checked, showStaff = $("#notation").checked;
-    if(L.kind==="bridge"){
-      const g = h("div",{class:"bridge"});
+      const per = S.length/2, g = h("div",{class:"path"+(L.kind==="bridge"?" bridgelv":""),style:`--cols:${per}`});
+      const isBr = L.kind==="bridge";
       S.forEach((s,i)=>{
-        const strs = inst.strings, hi=strs[st.pair].n, lo=strs[st.pair+1].n;
-        const top = s.notes.some(n=>n.f===1), bot = s.notes.some(n=>n.f===2);
-        const svg = `<svg viewBox="0 0 170 70" aria-hidden="true">
-          <text x="4" y="24" font-weight="800" font-size="16" fill="#14213d">${hi}</text>
-          <text x="4" y="56" font-weight="800" font-size="16" fill="#14213d">${lo}</text>
-          <line x1="24" y1="19" x2="166" y2="19" stroke="#14213d" stroke-width="2"/>
-          <line x1="24" y1="51" x2="166" y2="51" stroke="#14213d" stroke-width="2"/>
-          ${top?`<circle cx="55" cy="19" r="12" fill="var(--purple)"/><text x="55" y="24.5" text-anchor="middle" font-weight="800" font-size="15" fill="#fff">1</text>`:""}
-          ${bot?`<circle cx="130" cy="51" r="12" fill="var(--purple)"/><text x="130" y="56.5" text-anchor="middle" font-weight="800" font-size="15" fill="#fff">2</text>`:""}
-        </svg>`;
-        const nm = showNames ? `<div class="sub">${s.notes.map(n=>n.name).join(" + ")}</div>` : "";
-        const sf = showStaff ? `<div class="stf">${staff(s.notes,{chord:true,whole:true,scale:0.85})}</div>` : "";
-        g.append(h("div",{class:"bstep","data-step":i},`${svg}<div class="cap">${s.cap}</div>${nm}${sf}`));
-      });
-      sec.append(g);
-    } else {
-      const g = h("div",{class:"path"});
-      S.forEach((s,i)=>{
-        if(i===0) g.append(h("div",{class:"row-label"},"Down the strings"));
-        if(i===4){ g.append(h("div",{class:"turn","aria-hidden":"true"},"↩ turn around")); }
-        const str = inst.strings[s.si].n;
-        const fing = s.notes.map((n,j)=>`<span data-n="${j}">${n.f}</span>`).join("-");
-        const nm = s.notes.map((n,j)=>`<span data-n="${j}">${n.name}</span>`).join(" ");
-        g.append(h("div",{class:"tile"+(i%4===0?" first":""),"data-step":i},
+        if(i===0) g.append(h("div",{class:"row-label"}, isBr ? "Across the strings — hold, add, lift" : "Down the strings"));
+        if(i===per){ g.append(h("div",{class:"turn","aria-hidden":"true"},"↩ turn around")); }
+        const str = s.pairLabel || inst.strings[s.si].n;
+        const ev = e => Array.isArray(e) ? e : [e];
+        const fing = s.notes.map((e,j)=>`<span data-n="${j}">${ev(e).map(n=>n.f).join("+")}</span>`).join(isBr?" · ":"-");
+        const nm = s.notes.map((e,j)=>`<span data-n="${j}">${ev(e).map(n=>n.name).join("+")}</span>`).join(isBr?" · ":" ");
+        g.append(h("div",{class:"tile"+(i%per===0?" first":""),"data-step":i},
           `<div class="str">${str}</div><div class="box"><div class="fing">${fing}</div>${showNames?`<div class="names">${nm}</div>`:""}${showStaff?`<div class="stf">${staff(s.notes)}</div>`:""}</div>`));
       });
       sec.append(g);
-    }
     if(L.kind!=="pair"){
       const F = FRAMES[st.frame];
       // spacing reflects distance: close pair drawn nearer
@@ -506,14 +495,19 @@ function play(id){
   const at = (time, fn) => timers.push(setTimeout(fn, Math.max(0,(time - a.currentTime)*1000)));
   S.forEach((s,i)=>{
     const tile = sec.querySelector(`[data-step="${i}"]`);
-    if(s.dbl){
-      const d = beat*2;
-      s.notes.forEach(nn=>tone(nn.midi,t,d,true)); if($("#click").checked) click(t,true);
-      at(t,()=>{ sec.querySelectorAll(".active").forEach(e=>e.classList.remove("active")); tile.classList.add("active"); });
-      t+=d; n++; return;
-    }
     s.notes.forEach((nn,j)=>{
       let d = beat;
+      if(Array.isArray(nn)){                       // double stop: hold for two beats
+        const dd = beat*2, tt = t;
+        nn.forEach(q=>tone(q.midi, t, dd, legato));
+        if($("#click").checked) click(t, false);
+        at(tt,()=>{
+          sec.querySelectorAll(".active").forEach(e=>e.classList.remove("active"));
+          sec.querySelectorAll(".on").forEach(e=>e.classList.remove("on"));
+          tile.classList.add("active"); tile.querySelectorAll(`[data-n="${j}"]`).forEach(e=>e.classList.add("on"));
+        });
+        t+=dd; n++; return;
+      }
       if(v==="longshort") d = (n%2===0)? beat*1.5 : beat*0.5;
       if(v==="hooked")    d = (n%2===0)? beat*1.5 : beat*0.5;
       const leg = legato && j < s.notes.length-1;
@@ -568,7 +562,8 @@ $("#spin").addEventListener("click", ()=>{
   const pick = arr => arr[Math.floor(Math.random()*arr.length)];
   const L = pick(LEVELS), V = pick(VARS.filter(v=>v.id!=="bystring"));
   let what = "";
-  if(L.kind==="pair"){ const o=pick(L.opts), w=pick(["close","wide"]); state.lv[L.id].opt=o; state.lv[L.id].w=w; if(L.id==="1") state.lv["1"].byString=false; what=`${o}, ${w}`; }
+  if(L.kind==="bridge"){ const o=pick(L.opts); state.lv[L.id].opt=o; what=`fingers ${o.replace("-"," → ")}`; }
+  else if(L.kind==="pair"){ const o=pick(L.opts), w=pick(["close","wide"]); state.lv[L.id].opt=o; state.lv[L.id].w=w; if(L.id==="1") state.lv["1"].byString=false; what=`${o}, ${w}`; }
   else { const k=pick(Object.keys(FRAMES)); state.lv[L.id].frame=k; what=`frame ${FRAMES[k].label}`; }
   state.variation = V.id;
   const pos = pick([1,1,2,3,4]); state.lv[L.id].pos = pos;
