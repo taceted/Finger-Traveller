@@ -60,7 +60,8 @@
   .chip[aria-pressed="true"]{background:var(--c);color:#fff}
   .sub{font-size:.85rem;color:var(--muted);font-weight:600}
   .interval{font-size:.9rem;font-weight:700;color:var(--c);min-width:12.5em}
-  .posrow{margin-bottom:8px;gap:8px}
+  .posrow{margin-bottom:8px;gap:8px 16px}
+  .posrow > .seg{margin-left:-10px}
   .posw{display:inline-flex;align-items:center;gap:6px}
   .toggle{display:flex;align-items:center;gap:6px;font-size:.88rem;font-weight:700}
   .toggle input{accent-color:var(--c);width:18px;height:18px}
@@ -200,7 +201,7 @@
 <script>
 (() => {
 "use strict";
-const VERSION = "v1.8 · 27 Nov 2026";
+const VERSION = "v1.9 · 27 Nov 2026";
 // Snapshot of the page before any script changes it, so "Download" always saves a clean, working copy.
 const PRISTINE = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
 
@@ -312,6 +313,11 @@ function steps(L){
       }
     }
   }
+  // Mirrored: reverse the order inside every tile (e.g. 2-0 becomes 0-2), both directions.
+  if(st.mirror) out.forEach(x=>{
+    x.notes = [...x.notes].reverse();
+    if(x.pairLabel) x.pairLabel = x.pairLabel.split(" + ").reverse().join(" + ");
+  });
   return out;
 }
 
@@ -420,6 +426,11 @@ function render(){
     for(let p=1;p<=4;p++) ps.append(h("button",{"data-set":`${L.id}|pos|${p}`,"aria-pressed":String(st.pos===p)},`${p}${["st","nd","rd","th"][p-1]}`));
     // Position gets its own fixed row (first, so nothing before it can push it around)
     const pw = h("div",{class:"opts posrow"}); pw.append(h("span",{class:"sub"},"Position"), ps);
+    const ms = h("div",{class:"seg",role:"group","aria-label":"Order"});
+    ms.append(h("button",{"data-set":`${L.id}|mirror|0`,"aria-pressed":String(!st.mirror)},"Normal"),
+              h("button",{"data-set":`${L.id}|mirror|1`,"aria-pressed":String(!!st.mirror)},"Mirrored"));
+    const mw = h("span",{class:"posw"}); mw.append(h("span",{class:"sub"},"Order"), ms);
+    pw.append(mw);
     opts.before(pw);
 
     const S = steps(L), showNames = $("#names").checked, showStaff = $("#notation").checked;
@@ -553,7 +564,7 @@ document.addEventListener("click", e=>{
   const set = e.target.closest("[data-set]");
   if(set && set.tagName!=="INPUT"){
     const [id,k,v] = set.dataset.set.split("|"), st = state.lv[id];
-    if(k==="pair" || k==="pos") st[k]=+v; else if(k==="open") st.open = v==="1"; else st[k]=v;
+    if(k==="pair" || k==="pos") st[k]=+v; else if(k==="open") st.open = v==="1"; else if(k==="mirror") st.mirror = v==="1"; else st[k]=v;
     if(id==="1" && k==="opt") st.byString=false;
     stop(); keepPlace(set, ()=>{ render(); renderVars(); }); return;
   }
@@ -596,8 +607,9 @@ $("#spin").addEventListener("click", ()=>{
   else { const k=pick(Object.keys(FRAMES)); state.lv[L.id].frame=k; what=`frame ${FRAMES[k].label}`; }
   state.variation = V.id;
   const pos = pick([1,1,2,3,4]); state.lv[L.id].pos = pos;
+  const mir = Math.random() < 0.3; state.lv[L.id].mirror = mir;
   stop(); render(); renderVars();
-  $("#challenge").textContent = `Level ${L.id} (${L.title}) — ${what} — position ${pos} — with ${V.name.toLowerCase()}.`;
+  $("#challenge").textContent = `Level ${L.id} (${L.title}) — ${what} — position ${pos}${mir?" — mirrored":""} — with ${V.name.toLowerCase()}.`;
   $("#lv"+L.id).scrollIntoView({behavior:"smooth",block:"center"});
 });
 
