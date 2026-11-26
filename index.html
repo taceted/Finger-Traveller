@@ -51,6 +51,14 @@
   .title{background:var(--cbg);color:var(--ink);font-weight:900;font-size:1.25rem;letter-spacing:.02em;padding:4px 14px;border-radius:8px;text-transform:uppercase}
   .play{margin-left:auto;border:0;background:var(--c);color:#fff;border-radius:999px;padding:8px 16px;font-weight:800;display:flex;align-items:center;gap:6px}
   .play[data-on="1"]{background:var(--ink)}
+  .fold{border:0;background:none;color:var(--c);font-size:1.3rem;line-height:1;width:28px;height:28px;margin-right:-6px;padding:0}
+  .title[data-fold]{cursor:pointer}
+  .level.collapsed{padding-bottom:14px}
+  .level.collapsed .level-head{margin-bottom:0}
+  .level.collapsed .lvbody, .level.collapsed .ntog{display:none}
+  .level.collapsed .play{margin-left:auto}
+  .foldall{text-align:right;font-size:.85rem;color:var(--muted);margin:-6px 2px 8px}
+  .link{border:0;background:none;padding:2px 4px;color:var(--muted);font-weight:700;text-decoration:underline;text-underline-offset:3px}
   .ntog{margin-left:auto;border:1.5px solid var(--c);background:#fff;color:var(--c);border-radius:999px;padding:6px 12px;font-weight:800;font-size:.85rem}
   .ntog[aria-pressed="false"]{border-style:dashed;color:var(--muted);border-color:#c9cfdc}
   .ntog + .play{margin-left:0}
@@ -145,6 +153,7 @@
     body{background:#fff;font-size:10pt}
     .controls,.play,.challenge,.no-print,footer .tools{display:none!important}
     .print-only{display:block}
+    .level.collapsed .lvbody{display:block!important}
     .wrap{max-width:none;padding:0}
     header{padding:0 0 4mm}
     .level{break-inside:avoid;margin-bottom:4mm;padding:3mm 4mm;box-shadow:none}
@@ -184,6 +193,10 @@
     <output id="challenge" aria-live="polite">Pick a level, a finger pair and a variation — or let the dice decide.</output>
   </div>
 
+  <div class="foldall no-print">
+    <button class="link" data-foldall="expand">Expand all</button> ·
+    <button class="link" data-foldall="collapse">Collapse all</button>
+  </div>
   <main id="levels"></main>
 
   <section class="level" style="--c:var(--violet);--cbg:var(--violet-bg)" aria-labelledby="var-h">
@@ -206,7 +219,7 @@
 <script>
 (() => {
 "use strict";
-const VERSION = "v1.10 · 27 Nov 2026";
+const VERSION = "v1.11 · 27 Nov 2026";
 // Snapshot of the page before any script changes it, so "Download" always saves a clean, working copy.
 const PRISTINE = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
 
@@ -373,6 +386,11 @@ function staff(notes, opts={}){
   return out + `</svg>`;
 }
 
+/* ---------- Folding boxes (remembered on this device) ---------- */
+let collapsed = new Set();
+try{ collapsed = new Set(JSON.parse(localStorage.getItem("ft-collapsed")||"[]")); }catch(e){}
+const saveFolds = () => { try{ localStorage.setItem("ft-collapsed", JSON.stringify([...collapsed])); }catch(e){} };
+
 /* ---------- Rendering ---------- */
 const $ = (s, r=document) => r.querySelector(s);
 const h = (tag, attrs={}, html="") => { const e=document.createElement(tag); for(const k in attrs) e.setAttribute(k,attrs[k]); e.innerHTML=html; return e; };
@@ -390,10 +408,17 @@ function render(){
     const ntog = h("button",{class:"ntog no-print","aria-pressed":String(showSt),title:"Show or hide the notation (all levels)"},
       `<span aria-hidden="true">♪</span> Notation ${showSt?"on":"off"}`);
     const play = h("button",{class:"play no-print","data-lv":L.id,"aria-label":`Play level ${L.id}`},"▶ Play");
+    const folded = collapsed.has(L.id);
+    if(folded) sec.classList.add("collapsed");
+    const fold = h("button",{class:"fold no-print","data-fold":L.id,"aria-expanded":String(!folded),
+      "aria-label":`${folded?"Expand":"Collapse"} level ${L.id}`,title:folded?"Show this level":"Hide this level"},folded?"▸":"▾");
+    head.prepend(fold);
+    head.querySelector(".title").dataset.fold = L.id;
     head.append(ntog, play); sec.append(head);
+    const body = h("div",{class:"lvbody"}); sec.append(body);
 
     const opts = h("div",{class:"opts"});
-    sec.append(opts);
+    body.append(opts);
     if(L.kind==="pair"){
       const chips = h("div",{class:"chips",role:"group","aria-label":"Finger combination"});
       for(const o of L.opts) chips.append(h("button",{class:"chip","data-set":`${L.id}|opt|${o}`,"aria-pressed":String(st.opt===o && !st.byString)},o));
@@ -451,7 +476,7 @@ function render(){
         g.append(h("div",{class:"tile"+(i%per===0?" first":""),"data-step":i},
           `<div class="str">${str}</div><div class="box"><div class="fing">${fing}</div>${showNames?`<div class="names">${nm}</div>`:""}${showStaff?`<div class="stf">${staff(s.notes)}</div>`:""}</div>`));
       });
-      sec.append(g);
+      body.append(g);
     if(L.kind!=="pair"){
       const F = FRAMES[st.frame];
       // spacing reflects distance: close pair drawn nearer
@@ -464,7 +489,7 @@ function render(){
       const noOpen = L.id==="4" && st.open===false;
       pos.forEach((x,f)=>svg+=`<circle${noOpen&&f===0?' opacity=".25"':""} cx="${x}" cy="38" r="15" fill="#fff" stroke="#14213d" stroke-width="2.5"/><text${noOpen&&f===0?' opacity=".25"':""} x="${x}" y="44" text-anchor="middle" font-weight="800" font-size="17" fill="#14213d">${f}</text>`);
       svg += `</svg>`;
-      sec.append(h("div",{class:"frame"},`<span class="lbl">Same frame</span>${svg}`));
+      body.append(h("div",{class:"frame"},`<span class="lbl">Same frame</span>${svg}`));
     }
     main.append(sec);
   }
@@ -573,6 +598,17 @@ document.addEventListener("click", e=>{
     if(id==="1" && k==="opt") st.byString=false;
     stop(); keepPlace(set, ()=>{ render(); renderVars(); }); return;
   }
+  const fd = e.target.closest("[data-fold]");
+  if(fd){
+    const id = fd.dataset.fold;
+    collapsed.has(id) ? collapsed.delete(id) : collapsed.add(id);
+    saveFolds(); keepPlace(fd, render); return;
+  }
+  const fa = e.target.closest("[data-foldall]");
+  if(fa){
+    collapsed = fa.dataset.foldall==="collapse" ? new Set(LEVELS.map(l=>l.id)) : new Set();
+    saveFolds(); render(); return;
+  }
   const nt = e.target.closest(".ntog");
   if(nt){
     const cb = $("#notation"); cb.checked = !cb.checked;
@@ -613,6 +649,7 @@ $("#spin").addEventListener("click", ()=>{
   state.variation = V.id;
   const pos = pick([1,1,2,3,4]); state.lv[L.id].pos = pos;
   const mir = Math.random() < 0.3; state.lv[L.id].mirror = mir;
+  if(collapsed.delete(L.id)) saveFolds();   // open the level the dice picked
   stop(); render(); renderVars();
   $("#challenge").textContent = `Level ${L.id} (${L.title}) — ${what} — position ${pos}${mir?" — mirrored":""} — with ${V.name.toLowerCase()}.`;
   $("#lv"+L.id).scrollIntoView({behavior:"smooth",block:"center"});
