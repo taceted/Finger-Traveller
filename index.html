@@ -59,7 +59,8 @@
   .chip{border:0;background:var(--cbg);border-radius:7px;padding:5px 11px;font-weight:800;font-size:.95rem;font-variant-numeric:tabular-nums}
   .chip[aria-pressed="true"]{background:var(--c);color:#fff}
   .sub{font-size:.85rem;color:var(--muted);font-weight:600}
-  .interval{font-size:.9rem;font-weight:700;color:var(--c)}
+  .interval{font-size:.9rem;font-weight:700;color:var(--c);min-width:12.5em}
+  .posrow{margin-bottom:8px;gap:8px}
   .posw{display:inline-flex;align-items:center;gap:6px}
   .toggle{display:flex;align-items:center;gap:6px;font-size:.88rem;font-weight:700}
   .toggle input{accent-color:var(--c);width:18px;height:18px}
@@ -199,7 +200,7 @@
 <script>
 (() => {
 "use strict";
-const VERSION = "v1.7 · 26 Nov 2026";
+const VERSION = "v1.8 · 27 Nov 2026";
 // Snapshot of the page before any script changes it, so "Download" always saves a clean, working copy.
 const PRISTINE = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
 
@@ -381,6 +382,7 @@ function render(){
     head.append(ntog, play); sec.append(head);
 
     const opts = h("div",{class:"opts"});
+    sec.append(opts);
     if(L.kind==="pair"){
       const chips = h("div",{class:"chips",role:"group","aria-label":"Finger combination"});
       for(const o of L.opts) chips.append(h("button",{class:"chip","data-set":`${L.id}|opt|${o}`,"aria-pressed":String(st.opt===o && !st.byString)},o));
@@ -416,9 +418,9 @@ function render(){
     }
     const ps = h("div",{class:"seg",role:"group","aria-label":"Position"});
     for(let p=1;p<=4;p++) ps.append(h("button",{"data-set":`${L.id}|pos|${p}`,"aria-pressed":String(st.pos===p)},`${p}${["st","nd","rd","th"][p-1]}`));
-    const pw = h("span",{class:"posw"}); pw.append(h("span",{class:"sub"},"Position"), ps);
-    opts.append(pw);
-    sec.append(opts);
+    // Position gets its own fixed row (first, so nothing before it can push it around)
+    const pw = h("div",{class:"opts posrow"}); pw.append(h("span",{class:"sub"},"Position"), ps);
+    opts.before(pw);
 
     const S = steps(L), showNames = $("#names").checked, showStaff = $("#notation").checked;
       const per = S.length/2, g = h("div",{class:"path"+(L.kind==="bridge"?" bridgelv":""),style:`--cols:${per}`});
