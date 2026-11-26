@@ -51,6 +51,9 @@
   .title{background:var(--cbg);color:var(--ink);font-weight:900;font-size:1.25rem;letter-spacing:.02em;padding:4px 14px;border-radius:8px;text-transform:uppercase}
   .play{margin-left:auto;border:0;background:var(--c);color:#fff;border-radius:999px;padding:8px 16px;font-weight:800;display:flex;align-items:center;gap:6px}
   .play[data-on="1"]{background:var(--ink)}
+  .ntog{margin-left:auto;border:1.5px solid var(--c);background:#fff;color:var(--c);border-radius:999px;padding:6px 12px;font-weight:800;font-size:.85rem}
+  .ntog[aria-pressed="false"]{border-style:dashed;color:var(--muted);border-color:#c9cfdc}
+  .ntog + .play{margin-left:0}
   .opts{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;margin-bottom:12px}
   .chips{display:flex;flex-wrap:wrap;gap:6px}
   .chip{border:0;background:var(--cbg);border-radius:7px;padding:5px 11px;font-weight:800;font-size:.95rem;font-variant-numeric:tabular-nums}
@@ -196,7 +199,7 @@
 <script>
 (() => {
 "use strict";
-const VERSION = "v1.6 · 26 Nov 2026";
+const VERSION = "v1.7 · 26 Nov 2026";
 // Snapshot of the page before any script changes it, so "Download" always saves a clean, working copy.
 const PRISTINE = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
 
@@ -267,7 +270,7 @@ const LEVELS = [
   {id:"4", title:"Whole Hand",    c:"green",kind:"frame", fingers:[4,3,2,1,0], whole:true},
 ];
 const state = {inst:"violin", tempo:72, variation:"separate",
-  lv:{"1":{opt:"1-0",w:"close",byString:false,pos:1},"2":{opt:"1-2",w:"close",pos:1},"2A":{opt:"1-2",frame:"high2",pos:1},"3":{frame:"high2",pos:1},"4":{frame:"high2",pos:1}}};
+  lv:{"1":{opt:"1-0",w:"close",byString:false,pos:1},"2":{opt:"1-2",w:"close",pos:1},"2A":{opt:"1-2",frame:"high2",pos:1},"3":{frame:"high2",pos:1},"4":{frame:"high2",pos:1,open:true}}};
 
 // Build the step list for a level: each step = {si: string index, notes:[...], dbl?}
 function steps(L){
@@ -290,7 +293,8 @@ function steps(L){
     for(const dir of [1,0]){
       const order = dir? [0,1,2,3] : [3,2,1,0];
       for(const si of order){
-        const fs = dir? L.fingers : [...L.fingers].reverse();
+        const base = (L.id==="4" && st.open===false) ? L.fingers.filter(f=>f!==0) : L.fingers;
+        const fs = dir? base : [...base].reverse();
         out.push({si, dir, notes: fs.map(f=>note(strs[si], f, F[f], st.pos))});
       }
     }
@@ -370,8 +374,11 @@ function render(){
     const sec = h("section",{class:"level"+(L.whole?" whole":""),id:"lv"+L.id,style:`--c:var(--${L.c});--cbg:var(--${L.c}-bg)`});
     const head = h("div",{class:"level-head"},
       `<span class="badge">${L.id}</span><span class="title">${L.title}</span>`);
+    const showSt = $("#notation").checked;
+    const ntog = h("button",{class:"ntog no-print","aria-pressed":String(showSt),title:"Show or hide the notation (all levels)"},
+      `<span aria-hidden="true">♪</span> Notation ${showSt?"on":"off"}`);
     const play = h("button",{class:"play no-print","data-lv":L.id,"aria-label":`Play level ${L.id}`},"▶ Play");
-    head.append(play); sec.append(head);
+    head.append(ntog, play); sec.append(head);
 
     const opts = h("div",{class:"opts"});
     if(L.kind==="pair"){
@@ -399,6 +406,13 @@ function render(){
       for(const k in FRAMES) seg.append(h("button",{"data-set":`${L.id}|frame|${k}`,"aria-pressed":String(st.frame===k)},FRAMES[k].label));
       const fw = h("span",{class:"posw"}); fw.append(h("span",{class:"sub"},"Hand frame"), seg);
       opts.append(fw);
+      if(L.id==="4"){
+        const os = h("div",{class:"seg",role:"group","aria-label":"Open string"});
+        os.append(h("button",{"data-set":"4|open|1","aria-pressed":String(st.open!==false)},"With open"),
+                  h("button",{"data-set":"4|open|0","aria-pressed":String(st.open===false)},"No open"));
+        const ow = h("span",{class:"posw"}); ow.append(h("span",{class:"sub"},"Open string"), os);
+        opts.append(ow);
+      }
     }
     const ps = h("div",{class:"seg",role:"group","aria-label":"Position"});
     for(let p=1;p<=4;p++) ps.append(h("button",{"data-set":`${L.id}|pos|${p}`,"aria-pressed":String(st.pos===p)},`${p}${["st","nd","rd","th"][p-1]}`));
@@ -429,7 +443,8 @@ function render(){
         <line x1="10" y1="28" x2="10" y2="48" stroke="#14213d" stroke-width="2.5"/><line x1="420" y1="28" x2="420" y2="48" stroke="#14213d" stroke-width="2.5"/>`;
       const [a,b] = F.close, mx=(pos[a]+pos[b])/2;
       svg += `<polyline points="${pos[a]},20 ${mx},6 ${pos[b]},20" fill="none" stroke="var(--red)" stroke-width="3"/>`;
-      pos.forEach((x,f)=>svg+=`<circle cx="${x}" cy="38" r="15" fill="#fff" stroke="#14213d" stroke-width="2.5"/><text x="${x}" y="44" text-anchor="middle" font-weight="800" font-size="17" fill="#14213d">${f}</text>`);
+      const noOpen = L.id==="4" && st.open===false;
+      pos.forEach((x,f)=>svg+=`<circle${noOpen&&f===0?' opacity=".25"':""} cx="${x}" cy="38" r="15" fill="#fff" stroke="#14213d" stroke-width="2.5"/><text${noOpen&&f===0?' opacity=".25"':""} x="${x}" y="44" text-anchor="middle" font-weight="800" font-size="17" fill="#14213d">${f}</text>`);
       svg += `</svg>`;
       sec.append(h("div",{class:"frame"},`<span class="lbl">Same frame</span>${svg}`));
     }
@@ -526,13 +541,25 @@ function play(id){
 }
 
 /* ---------- Events ---------- */
+function keepPlace(el, fn){
+  const sec = el.closest("section"), id = sec && sec.id, before = sec ? sec.getBoundingClientRect().top : 0;
+  fn();
+  const after = id && document.getElementById(id);
+  if(after) window.scrollBy(0, after.getBoundingClientRect().top - before);
+}
 document.addEventListener("click", e=>{
   const set = e.target.closest("[data-set]");
   if(set && set.tagName!=="INPUT"){
     const [id,k,v] = set.dataset.set.split("|"), st = state.lv[id];
-    if(k==="pair" || k==="pos") st[k]=+v; else st[k]=v;
+    if(k==="pair" || k==="pos") st[k]=+v; else if(k==="open") st.open = v==="1"; else st[k]=v;
     if(id==="1" && k==="opt") st.byString=false;
-    stop(); render(); renderVars(); return;
+    stop(); keepPlace(set, ()=>{ render(); renderVars(); }); return;
+  }
+  const nt = e.target.closest(".ntog");
+  if(nt){
+    const cb = $("#notation"); cb.checked = !cb.checked;
+    try{ localStorage.setItem("ft-notation", cb.checked?"1":"0"); }catch(_){}
+    stop(); keepPlace(nt, render); return;
   }
   const p = e.target.closest(".play"); if(p){ play(p.dataset.lv); return; }
   const vb = e.target.closest("[data-var]");
