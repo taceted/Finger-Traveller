@@ -56,12 +56,17 @@
   .ntog + .play{margin-left:0}
   .opts{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;margin-bottom:12px}
   .chips{display:flex;flex-wrap:wrap;gap:6px}
-  .chip{border:0;background:var(--cbg);border-radius:7px;padding:5px 11px;font-weight:800;font-size:.95rem;font-variant-numeric:tabular-nums}
+  .chip{border:0;background:var(--cbg);border-radius:8px;padding:7px 14px;font-weight:800;font-size:1.1rem;font-variant-numeric:tabular-nums}
   .chip[aria-pressed="true"]{background:var(--c);color:#fff}
   .sub{font-size:.85rem;color:var(--muted);font-weight:600}
   .interval{font-size:.9rem;font-weight:700;color:var(--c);min-width:12.5em}
-  .posrow{margin-bottom:8px;gap:8px 16px}
+  .posrow{gap:6px 18px;margin:-4px 0 12px}
   .posrow > .seg{margin-left:-10px}
+  /* Position / Order: secondary settings, kept small and quiet */
+  .minor .sub{font-size:.75rem}
+  .minor .seg{border-width:1px;border-color:#d8dce6}
+  .minor .seg button{font-size:.72rem;padding:3px 9px;font-weight:600;color:var(--muted)}
+  .minor .seg button[aria-pressed="true"]{background:#e6e9f1;color:var(--ink)}
   .posw{display:inline-flex;align-items:center;gap:6px}
   .toggle{display:flex;align-items:center;gap:6px;font-size:.88rem;font-weight:700}
   .toggle input{accent-color:var(--c);width:18px;height:18px}
@@ -201,7 +206,7 @@
 <script>
 (() => {
 "use strict";
-const VERSION = "v1.9 · 27 Nov 2026";
+const VERSION = "v1.10 · 27 Nov 2026";
 // Snapshot of the page before any script changes it, so "Download" always saves a clean, working copy.
 const PRISTINE = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
 
@@ -425,13 +430,13 @@ function render(){
     const ps = h("div",{class:"seg",role:"group","aria-label":"Position"});
     for(let p=1;p<=4;p++) ps.append(h("button",{"data-set":`${L.id}|pos|${p}`,"aria-pressed":String(st.pos===p)},`${p}${["st","nd","rd","th"][p-1]}`));
     // Position gets its own fixed row (first, so nothing before it can push it around)
-    const pw = h("div",{class:"opts posrow"}); pw.append(h("span",{class:"sub"},"Position"), ps);
+    const pw = h("div",{class:"opts posrow minor"}); pw.append(h("span",{class:"sub"},"Position"), ps);
     const ms = h("div",{class:"seg",role:"group","aria-label":"Order"});
     ms.append(h("button",{"data-set":`${L.id}|mirror|0`,"aria-pressed":String(!st.mirror)},"Normal"),
               h("button",{"data-set":`${L.id}|mirror|1`,"aria-pressed":String(!!st.mirror)},"Mirrored"));
     const mw = h("span",{class:"posw"}); mw.append(h("span",{class:"sub"},"Order"), ms);
     pw.append(mw);
-    opts.before(pw);
+    opts.after(pw);
 
     const S = steps(L), showNames = $("#names").checked, showStaff = $("#notation").checked;
       const per = S.length/2, g = h("div",{class:"path"+(L.kind==="bridge"?" bridgelv":""),style:`--cols:${per}`});
